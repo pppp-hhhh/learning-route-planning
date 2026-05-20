@@ -112,6 +112,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               },
               helperText: 'github.com/Unsearch-ai/unsearch',
             ),
+            const SizedBox(height: 16),
+            _SearchProviderSelector(l10n: l10n),
 
             const SizedBox(height: 32),
             const Divider(),
@@ -385,6 +387,144 @@ class _LanguageToggle extends ConsumerWidget {
         onTap: () {
           ref.read(localeProvider.notifier).toggleLocale();
         },
+      ),
+    );
+  }
+}
+
+class _SearchProviderSelector extends ConsumerWidget {
+  final AppLocalizations l10n;
+
+  const _SearchProviderSelector({required this.l10n});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentProvider = ref.watch(searchProviderTypeProvider);
+    final exaKey = ref.watch(exaApiKeyProvider);
+    final unsearchKey = ref.watch(unsearchApiKeyProvider);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.search,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.searchProvider,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _ProviderOption(
+              title: 'Exa',
+              subtitle: exaKey.isEmpty ? 'API key not set' : 'Configured',
+              isSelected: currentProvider == SearchProviderType.exa,
+              onTap: () {
+                ref.read(searchProviderTypeProvider.notifier).setProvider(SearchProviderType.exa);
+              },
+            ),
+            const SizedBox(height: 8),
+            _ProviderOption(
+              title: 'UnSearch',
+              subtitle: unsearchKey.isEmpty ? 'API key not set' : 'Configured',
+              isSelected: currentProvider == SearchProviderType.unsearch,
+              onTap: () {
+                ref.read(searchProviderTypeProvider.notifier).setProvider(SearchProviderType.unsearch);
+              },
+            ),
+            if (currentProvider == SearchProviderType.unsearch && unsearchKey.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Please enter your UnSearch API key above to use this provider.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.orange,
+                      ),
+                ),
+              ),
+            if (currentProvider == SearchProviderType.exa && exaKey.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Please enter your Exa API key above to use this provider.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.orange,
+                      ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProviderOption extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ProviderOption({
+    required this.title,
+    required this.subtitle,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          color: isSelected ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3) : null,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey.shade600,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

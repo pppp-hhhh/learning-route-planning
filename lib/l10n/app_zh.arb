@@ -34,7 +34,9 @@
   "apiConfiguration": "API 配置",
   "claudeApiKey": "Claude API Key",
   "exaApiKey": "Exa API Key",
+  "searchProvider": "搜索提供商",
   "selectAiProvider": "选择 AI 提供商",
+  "selectSearchProvider": "选择搜索提供商",
   "howToGetApiKey": "如何获取 API Key？",
   "visitToSignUp": "访问 {url} 注册并获取您的 Key",
   "@visitToSignUp": {

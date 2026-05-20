@@ -34,7 +34,9 @@
   "apiConfiguration": "API Configuration",
   "claudeApiKey": "Claude API Key",
   "exaApiKey": "Exa API Key",
+  "searchProvider": "Search Provider",
   "selectAiProvider": "Select AI Provider",
+  "selectSearchProvider": "Select Search Provider",
   "howToGetApiKey": "How to get an API key?",
   "visitToSignUp": "Visit {url} to sign up and get your key.",
   "@visitToSignUp": {
