@@ -111,13 +111,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get exaApiKey => 'Exa API Key';
 
   @override
-  String get searchProvider => '搜索提供商';
-
-  @override
   String get selectAiProvider => '选择 AI 提供商';
-
-  @override
-  String get selectSearchProvider => '选择搜索提供商';
 
   @override
   String get howToGetApiKey => '如何获取 API Key？';

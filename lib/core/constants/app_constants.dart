@@ -10,9 +10,10 @@ class AppConstants {
   static const String claudeModel = 'claude-sonnet-4-20250514';
   static const int claudeMaxTokens = 4096;
 
-  // Search API (Exa for web search)
+  // Search API
   static const String exaApiUrl = 'https://api.exa.ai/search';
-  static const String unsearchApiUrl = 'https://api.unsearch.ai/search';
+  static const String tavilyApiUrl = 'https://api.tavily.com/search';
+  static const String serpapiApiUrl = 'https://serpapi.com/search';
   static const int defaultSearchLimit = 20;
 
   // Database

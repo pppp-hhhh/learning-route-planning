@@ -15,10 +15,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _claudeKeyController = TextEditingController();
   final _exaKeyController = TextEditingController();
-  final _unsearchKeyController = TextEditingController();
   bool _obscureClaudeKey = true;
   bool _obscureExaKey = true;
-  bool _obscureUnsearchKey = true;
 
   @override
   void initState() {
@@ -26,10 +24,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final claudeKey = ref.read(claudeApiKeyProvider);
       final exaKey = ref.read(exaApiKeyProvider);
-      final unsearchKey = ref.read(unsearchApiKeyProvider);
       _claudeKeyController.text = claudeKey;
       _exaKeyController.text = exaKey;
-      _unsearchKeyController.text = unsearchKey;
     });
   }
 
@@ -37,7 +33,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void dispose() {
     _claudeKeyController.dispose();
     _exaKeyController.dispose();
-    _unsearchKeyController.dispose();
     super.dispose();
   }
 
@@ -95,25 +90,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               },
               helperText: 'exa.ai',
             ),
-            const SizedBox(height: 16),
-            _ApiKeyField(
-              label: 'UnSearch API Key (${l10n.optional})',
-              hint: 'unsearch-...',
-              controller: _unsearchKeyController,
-              obscureText: _obscureUnsearchKey,
-              onToggleObscure: () {
-                setState(() => _obscureUnsearchKey = !_obscureUnsearchKey);
-              },
-              onSave: (key) {
-                ref.read(unsearchApiKeyProvider.notifier).setKey(key);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('UnSearch API Key saved')),
-                );
-              },
-              helperText: 'github.com/Unsearch-ai/unsearch',
-            ),
-            const SizedBox(height: 16),
-            _SearchProviderSelector(l10n: l10n),
 
             const SizedBox(height: 32),
             const Divider(),
@@ -128,6 +104,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
             const SizedBox(height: 8),
             _LanguageToggle(l10n: l10n),
+
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 16),
+
+            _SectionHeader(
+              title: 'Search Provider',
+              icon: Icons.search,
+            ),
+            const SizedBox(height: 16),
+            _SearchProviderSelector(),
 
             const SizedBox(height: 32),
             const Divider(),
@@ -392,144 +379,6 @@ class _LanguageToggle extends ConsumerWidget {
   }
 }
 
-class _SearchProviderSelector extends ConsumerWidget {
-  final AppLocalizations l10n;
-
-  const _SearchProviderSelector({required this.l10n});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final currentProvider = ref.watch(searchProviderTypeProvider);
-    final exaKey = ref.watch(exaApiKeyProvider);
-    final unsearchKey = ref.watch(unsearchApiKeyProvider);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.search,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  l10n.searchProvider,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _ProviderOption(
-              title: 'Exa',
-              subtitle: exaKey.isEmpty ? 'API key not set' : 'Configured',
-              isSelected: currentProvider == SearchProviderType.exa,
-              onTap: () {
-                ref.read(searchProviderTypeProvider.notifier).setProvider(SearchProviderType.exa);
-              },
-            ),
-            const SizedBox(height: 8),
-            _ProviderOption(
-              title: 'UnSearch',
-              subtitle: unsearchKey.isEmpty ? 'API key not set' : 'Configured',
-              isSelected: currentProvider == SearchProviderType.unsearch,
-              onTap: () {
-                ref.read(searchProviderTypeProvider.notifier).setProvider(SearchProviderType.unsearch);
-              },
-            ),
-            if (currentProvider == SearchProviderType.unsearch && unsearchKey.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Please enter your UnSearch API key above to use this provider.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.orange,
-                      ),
-                ),
-              ),
-            if (currentProvider == SearchProviderType.exa && exaKey.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Please enter your Exa API key above to use this provider.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.orange,
-                      ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProviderOption extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ProviderOption({
-    required this.title,
-    required this.subtitle,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
-            width: isSelected ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(8),
-          color: isSelected ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3) : null,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade600,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _NotificationToggle extends StatelessWidget {
   final AppLocalizations l10n;
 
@@ -598,6 +447,137 @@ class _SettingsTile extends StatelessWidget {
         subtitle: subtitle != null ? Text(subtitle!) : null,
         trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right) : null),
         onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _SearchProviderSelector extends ConsumerWidget {
+  const _SearchProviderSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentProvider = ref.watch(searchProviderTypeProvider);
+    final exaKey = ref.watch(exaApiKeyProvider);
+    final tavilyKey = ref.watch(tavilyApiKeyProvider);
+    final serpapiKey = ref.watch(serpapiApiKeyProvider);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ProviderOption(
+              title: 'Exa',
+              subtitle: exaKey.isEmpty ? 'API key not set' : 'Configured',
+              isSelected: currentProvider == SearchProviderType.exa,
+              onTap: () {
+                ref.read(searchProviderTypeProvider.notifier).setProvider(SearchProviderType.exa);
+              },
+            ),
+            const SizedBox(height: 8),
+            _ProviderOption(
+              title: 'Tavily',
+              subtitle: tavilyKey.isEmpty ? 'API key not set' : 'Configured',
+              isSelected: currentProvider == SearchProviderType.tavily,
+              onTap: () {
+                ref.read(searchProviderTypeProvider.notifier).setProvider(SearchProviderType.tavily);
+              },
+            ),
+            const SizedBox(height: 8),
+            _ProviderOption(
+              title: 'SerpAPI',
+              subtitle: serpapiKey.isEmpty ? 'API key not set' : 'Configured',
+              isSelected: currentProvider == SearchProviderType.serpapi,
+              onTap: () {
+                ref.read(searchProviderTypeProvider.notifier).setProvider(SearchProviderType.serpapi);
+              },
+            ),
+            if (_getKeyStatus(currentProvider, exaKey, tavilyKey, serpapiKey) != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _getKeyStatus(currentProvider, exaKey, tavilyKey, serpapiKey)!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.orange,
+                      ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String? _getKeyStatus(SearchProviderType type, String exaKey, String tavilyKey, String serpapiKey) {
+    switch (type) {
+      case SearchProviderType.exa:
+        return exaKey.isEmpty ? 'Please enter your Exa API key above to use this provider.' : null;
+      case SearchProviderType.tavily:
+        return tavilyKey.isEmpty ? 'Please enter your Tavily API key above to use this provider.' : null;
+      case SearchProviderType.serpapi:
+        return serpapiKey.isEmpty ? 'Please enter your SerpAPI key above to use this provider.' : null;
+    }
+  }
+}
+
+class _ProviderOption extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ProviderOption({
+    required this.title,
+    required this.subtitle,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          color: isSelected ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3) : null,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey.shade600,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

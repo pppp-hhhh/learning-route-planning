@@ -111,13 +111,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exaApiKey => 'Exa API Key';
 
   @override
-  String get searchProvider => 'Search Provider';
-
-  @override
   String get selectAiProvider => 'Select AI Provider';
-
-  @override
-  String get selectSearchProvider => 'Select Search Provider';
 
   @override
   String get howToGetApiKey => 'How to get an API key?';

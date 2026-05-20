@@ -3,21 +3,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_learning_route_planner/core/database/app_database.dart';
 import 'package:ai_learning_route_planner/services/ai/claude_service.dart';
 import 'package:ai_learning_route_planner/services/ai/resource_search_service.dart';
-import 'package:ai_learning_route_planner/services/ai/unsearch_service.dart';
+import 'package:ai_learning_route_planner/services/ai/tavily_service.dart';
+import 'package:ai_learning_route_planner/services/ai/serpapi_service.dart';
 import 'package:ai_learning_route_planner/services/ai/ai_service.dart';
-
-// Keys for SharedPreferences
-const String _claudeApiKeyPref = 'claude_api_key';
-const String _exaApiKeyPref = 'exa_api_key';
-const String _unsearchApiKeyPref = 'unsearch_api_key';
-const String _aiProviderTypePref = 'ai_provider_type';
-const String _searchProviderTypePref = 'search_provider_type';
 
 // Search Provider Type
 enum SearchProviderType {
   exa,
-  unsearch,
+  tavily,
+  serpapi,
 }
+
+// Keys for SharedPreferences
+const String _claudeApiKeyPref = 'claude_api_key';
+const String _exaApiKeyPref = 'exa_api_key';
+const String _tavilyApiKeyPref = 'tavily_api_key';
+const String _serpapiApiKeyPref = 'serpapi_api_key';
+const String _aiProviderTypePref = 'ai_provider_type';
+const String _searchProviderTypePref = 'search_provider_type';
 
 // Database Provider
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -89,33 +92,63 @@ class ExaApiKeyNotifier extends StateNotifier<String> {
   }
 }
 
-// UnSearch API Key Provider (persisted)
-final unsearchApiKeyProvider = StateNotifierProvider<UnsearchApiKeyNotifier, String>((ref) {
-  return UnsearchApiKeyNotifier(ref);
+// Tavily API Key Provider (persisted)
+final tavilyApiKeyProvider = StateNotifierProvider<TavilyApiKeyNotifier, String>((ref) {
+  return TavilyApiKeyNotifier(ref);
 });
 
-class UnsearchApiKeyNotifier extends StateNotifier<String> {
+class TavilyApiKeyNotifier extends StateNotifier<String> {
   final Ref ref;
 
-  UnsearchApiKeyNotifier(this.ref) : super('') {
+  TavilyApiKeyNotifier(this.ref) : super('') {
     _loadKey();
   }
 
   Future<void> _loadKey() async {
     final prefs = await ref.read(sharedPreferencesProvider.future);
-    state = prefs.getString(_unsearchApiKeyPref) ?? '';
+    state = prefs.getString(_tavilyApiKeyPref) ?? '';
   }
 
   Future<void> setKey(String key) async {
     state = key;
     final prefs = await ref.read(sharedPreferencesProvider.future);
-    await prefs.setString(_unsearchApiKeyPref, key);
+    await prefs.setString(_tavilyApiKeyPref, key);
   }
 
   Future<void> clearKey() async {
     state = '';
     final prefs = await ref.read(sharedPreferencesProvider.future);
-    await prefs.remove(_unsearchApiKeyPref);
+    await prefs.remove(_tavilyApiKeyPref);
+  }
+}
+
+// SerpAPI Key Provider (persisted)
+final serpapiApiKeyProvider = StateNotifierProvider<SerpapiApiKeyNotifier, String>((ref) {
+  return SerpapiApiKeyNotifier(ref);
+});
+
+class SerpapiApiKeyNotifier extends StateNotifier<String> {
+  final Ref ref;
+
+  SerpapiApiKeyNotifier(this.ref) : super('') {
+    _loadKey();
+  }
+
+  Future<void> _loadKey() async {
+    final prefs = await ref.read(sharedPreferencesProvider.future);
+    state = prefs.getString(_serpapiApiKeyPref) ?? '';
+  }
+
+  Future<void> setKey(String key) async {
+    state = key;
+    final prefs = await ref.read(sharedPreferencesProvider.future);
+    await prefs.setString(_serpapiApiKeyPref, key);
+  }
+
+  Future<void> clearKey() async {
+    state = '';
+    final prefs = await ref.read(sharedPreferencesProvider.future);
+    await prefs.remove(_serpapiApiKeyPref);
   }
 }
 
@@ -207,10 +240,16 @@ final exaServiceProvider = Provider<ResourceSearchService?>((ref) {
   return ResourceSearchService(apiKey: apiKey);
 });
 
-final unsearchServiceProvider = Provider<UnSearchService?>((ref) {
-  final apiKey = ref.watch(unsearchApiKeyProvider);
+final tavilyServiceProvider = Provider<TavilyService?>((ref) {
+  final apiKey = ref.watch(tavilyApiKeyProvider);
   if (apiKey.isEmpty) return null;
-  return UnSearchService(apiKey: apiKey);
+  return TavilyService(apiKey: apiKey);
+});
+
+final serpapiServiceProvider = Provider<SerpapiService?>((ref) {
+  final apiKey = ref.watch(serpapiApiKeyProvider);
+  if (apiKey.isEmpty) return null;
+  return SerpapiService(apiKey: apiKey);
 });
 
 // Roadmap Providers
@@ -377,13 +416,14 @@ class ResourceSearchNotifier extends StateNotifier<ResourceSearchState> {
     int limit = 20,
   }) async {
     final searchType = ref.read(searchProviderTypeProvider);
+    final searchQuery = '$topic $query';
 
-    if (searchType == SearchProviderType.unsearch) {
-      final unsearchService = ref.read(unsearchServiceProvider);
-      if (unsearchService == null) {
+    if (searchType == SearchProviderType.exa) {
+      final exaService = ref.read(exaServiceProvider);
+      if (exaService == null) {
         state = state.copyWith(
           isSearching: false,
-          error: 'UnSearch API key not configured. Please add your API key in Settings.',
+          error: 'Exa API key not configured. Please add your API key in Settings.',
         );
         return;
       }
@@ -391,8 +431,8 @@ class ResourceSearchNotifier extends StateNotifier<ResourceSearchState> {
       state = state.copyWith(isSearching: true, error: null);
 
       try {
-        final results = await unsearchService.searchResources(
-          query: query,
+        final results = await exaService.searchResources(
+          query: searchQuery,
           topic: topic,
           limit: limit,
         );
@@ -410,12 +450,12 @@ class ResourceSearchNotifier extends StateNotifier<ResourceSearchState> {
       } catch (e) {
         state = state.copyWith(isSearching: false, error: e.toString());
       }
-    } else {
-      final exaService = ref.read(exaServiceProvider);
-      if (exaService == null) {
+    } else if (searchType == SearchProviderType.tavily) {
+      final tavilyService = ref.read(tavilyServiceProvider);
+      if (tavilyService == null) {
         state = state.copyWith(
           isSearching: false,
-          error: 'Exa API key not configured. Please add your API key in Settings.',
+          error: 'Tavily API key not configured. Please add your API key in Settings.',
         );
         return;
       }
@@ -423,20 +463,50 @@ class ResourceSearchNotifier extends StateNotifier<ResourceSearchState> {
       state = state.copyWith(isSearching: true, error: null);
 
       try {
-        final results = await exaService.searchResources(
-          query: query,
-          topic: topic,
+        final results = await tavilyService.searchResources(
+          query: searchQuery,
           limit: limit,
         );
         state = state.copyWith(
           isSearching: false,
           results: results.map((r) => {
-            'id': r.id,
+            'id': r.url,
             'title': r.title,
             'url': r.url,
             'snippet': r.snippet,
             'type': r.type,
             'score': r.score,
+          }).toList(),
+        );
+      } catch (e) {
+        state = state.copyWith(isSearching: false, error: e.toString());
+      }
+    } else if (searchType == SearchProviderType.serpapi) {
+      final serpapiService = ref.read(serpapiServiceProvider);
+      if (serpapiService == null) {
+        state = state.copyWith(
+          isSearching: false,
+          error: 'SerpAPI key not configured. Please add your API key in Settings.',
+        );
+        return;
+      }
+
+      state = state.copyWith(isSearching: true, error: null);
+
+      try {
+        final results = await serpapiService.searchResources(
+          query: searchQuery,
+          limit: limit,
+        );
+        state = state.copyWith(
+          isSearching: false,
+          results: results.map((r) => {
+            'id': r.url,
+            'title': r.title,
+            'url': r.url,
+            'snippet': r.snippet,
+            'type': r.type,
+            'score': 1.0,
           }).toList(),
         );
       } catch (e) {

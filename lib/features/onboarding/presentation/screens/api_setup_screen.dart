@@ -18,19 +18,22 @@ class ApiSetupScreen extends ConsumerStatefulWidget {
 class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
   final _apiKeyController = TextEditingController();
   final _exaKeyController = TextEditingController();
-  final _unsearchKeyController = TextEditingController();
+  final _tavilyKeyController = TextEditingController();
+  final _serpapiKeyController = TextEditingController();
   AIProviderType _selectedProvider = AIProviderType.claude;
   bool _isVerifying = false;
   bool _obscureApiKey = true;
   bool _obscureExaKey = true;
-  bool _obscureUnsearchKey = true;
+  bool _obscureTavilyKey = true;
+  bool _obscureSerpapiKey = true;
   String? _errorMessage;
 
   @override
   void dispose() {
     _apiKeyController.dispose();
     _exaKeyController.dispose();
-    _unsearchKeyController.dispose();
+    _tavilyKeyController.dispose();
+    _serpapiKeyController.dispose();
     super.dispose();
   }
 
@@ -49,8 +52,15 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
     }
   }
 
-  Future<void> _openUnsearchDocs() async {
-    final uri = Uri.parse('https://github.com/Unsearch-ai/unsearch');
+  Future<void> _openTavilyDocs() async {
+    final uri = Uri.parse('https://tavily.com');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _openSerpapiDocs() async {
+    final uri = Uri.parse('https://serpapi.com');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -73,16 +83,20 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
     await ref.read(claudeApiKeyProvider.notifier).setKey(apiKey);
     await ref.read(aiProviderTypeProvider.notifier).setProvider(_selectedProvider);
 
-    // 保存 Exa API key（如果输入了）
+    // 保存搜索 API keys
     final exaKey = _exaKeyController.text.trim();
     if (exaKey.isNotEmpty) {
       await ref.read(exaApiKeyProvider.notifier).setKey(exaKey);
     }
 
-    // 保存 UnSearch API key（如果输入了）
-    final unsearchKey = _unsearchKeyController.text.trim();
-    if (unsearchKey.isNotEmpty) {
-      await ref.read(unsearchApiKeyProvider.notifier).setKey(unsearchKey);
+    final tavilyKey = _tavilyKeyController.text.trim();
+    if (tavilyKey.isNotEmpty) {
+      await ref.read(tavilyApiKeyProvider.notifier).setKey(tavilyKey);
+    }
+
+    final serpapiKey = _serpapiKeyController.text.trim();
+    if (serpapiKey.isNotEmpty) {
+      await ref.read(serpapiApiKeyProvider.notifier).setKey(serpapiKey);
     }
 
     // 刷新 auth state 触发路由重定向
@@ -139,7 +153,9 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
               const SizedBox(height: 24),
               _buildExaKeyInput(context, l10n, isDark),
               const SizedBox(height: 16),
-              _buildUnsearchKeyInput(context, l10n, isDark),
+              _buildTavilyKeyInput(context, l10n, isDark),
+              const SizedBox(height: 16),
+              _buildSerpapiKeyInput(context, l10n, isDark),
               const SizedBox(height: 16),
               _buildDocsLink(context, l10n, isDark),
               if (_errorMessage != null) ...[
@@ -396,14 +412,14 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
     );
   }
 
-  Widget _buildUnsearchKeyInput(BuildContext context, AppLocalizations l10n, bool isDark) {
+  Widget _buildTavilyKeyInput(BuildContext context, AppLocalizations l10n, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Text(
-              'UnSearch API Key (${l10n.optional})',
+              'Tavily API Key (${l10n.optional})',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -425,7 +441,7 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
             ),
             const Spacer(),
             TextButton.icon(
-              onPressed: _openUnsearchDocs,
+              onPressed: _openTavilyDocs,
               icon: const Icon(Icons.open_in_new, size: 16),
               label: Text(l10n.getApiKey),
             ),
@@ -433,15 +449,15 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
         ),
         const SizedBox(height: 8),
         TextField(
-          controller: _unsearchKeyController,
-          obscureText: _obscureUnsearchKey,
+          controller: _tavilyKeyController,
+          obscureText: _obscureTavilyKey,
           decoration: InputDecoration(
             hintText: '${l10n.enterYourApiKey} (${l10n.optional})',
             prefixIcon: const Icon(Icons.search),
             suffixIcon: IconButton(
-              icon: Icon(_obscureUnsearchKey ? Icons.visibility : Icons.visibility_off),
+              icon: Icon(_obscureTavilyKey ? Icons.visibility : Icons.visibility_off),
               onPressed: () {
-                setState(() => _obscureUnsearchKey = !_obscureUnsearchKey);
+                setState(() => _obscureTavilyKey = !_obscureTavilyKey);
               },
             ),
             border: OutlineInputBorder(
@@ -453,7 +469,73 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Open source alternative to Exa. 5000 requests/month free.',
+          'tavily.com — 1000 requests/month free.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.grey[600],
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSerpapiKeyInput(BuildContext context, AppLocalizations l10n, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'SerpAPI Key (${l10n.optional})',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Google Search',
+                style: TextStyle(
+                  color: Colors.blue,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: _openSerpapiDocs,
+              icon: const Icon(Icons.open_in_new, size: 16),
+              label: Text(l10n.getApiKey),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _serpapiKeyController,
+          obscureText: _obscureSerpapiKey,
+          decoration: InputDecoration(
+            hintText: '${l10n.enterYourApiKey} (${l10n.optional})',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: IconButton(
+              icon: Icon(_obscureSerpapiKey ? Icons.visibility : Icons.visibility_off),
+              onPressed: () {
+                setState(() => _obscureSerpapiKey = !_obscureSerpapiKey);
+              },
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            filled: true,
+            fillColor: isDark ? Colors.grey.shade800.withValues(alpha: 0.3) : Colors.grey.shade50,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'serpapi.com — 100 searches/month free.',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Colors.grey[600],
               ),

@@ -299,23 +299,11 @@ abstract class AppLocalizations {
   /// **'Exa API Key'**
   String get exaApiKey;
 
-  /// No description provided for @searchProvider.
-  ///
-  /// In en, this message translates to:
-  /// **'Search Provider'**
-  String get searchProvider;
-
   /// No description provided for @selectAiProvider.
   ///
   /// In en, this message translates to:
   /// **'Select AI Provider'**
   String get selectAiProvider;
-
-  /// No description provided for @selectSearchProvider.
-  ///
-  /// In en, this message translates to:
-  /// **'Select Search Provider'**
-  String get selectSearchProvider;
 
   /// No description provided for @howToGetApiKey.
   ///
