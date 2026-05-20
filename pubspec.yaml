@@ -1,0 +1,67 @@
+name: ai_learning_route_planner
+description: "AI-powered learning route planner with autonomous resource discovery"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Database
+  drift: ^2.22.1
+  drift_flutter: ^0.2.4
+  sqlite3_flutter_libs: ^0.5.28
+
+  # Navigation
+  go_router: ^14.6.2
+
+  # Backend
+  supabase_flutter: ^2.8.3
+
+  # Networking
+  http: ^1.2.2
+
+  # Serialization
+  json_annotation: ^4.9.0
+  freezed_annotation: ^2.4.4
+
+  # UI Components
+  fl_chart: ^0.69.2
+
+  # Notifications
+  flutter_local_notifications: ^18.0.1
+
+  # Utils
+  uuid: ^4.5.1
+  intl: ^0.20.1
+  path_provider: ^2.1.5
+  shared_preferences: ^2.3.4
+  flutter_secure_storage: ^9.2.3
+  equatable: ^2.0.7
+  collection: ^1.19.0
+  url_launcher: ^6.3.2
+
+  # Localization
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.13
+  riverpod_generator: ^2.6.3
+  drift_dev: ^2.22.1
+  json_serializable: ^6.9.0
+  freezed: ^2.5.7
+
+flutter:
+  uses-material-design: true
