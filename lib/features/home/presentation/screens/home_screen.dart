@@ -3,33 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ai_learning_route_planner/core/database/app_database.dart';
 import 'package:ai_learning_route_planner/core/theme/app_theme.dart';
+import 'package:ai_learning_route_planner/l10n/app_localizations.dart';
+import 'package:ai_learning_route_planner/features/roadmap/presentation/providers/providers.dart';
 import 'package:fl_chart/fl_chart.dart';
-
-final databaseProvider = Provider<AppDatabase>((ref) {
-  return AppDatabase();
-});
-
-final roadmapsProvider = StreamProvider<List<Roadmap>>((ref) {
-  final db = ref.watch(databaseProvider);
-  return db.watchAllRoadmaps();
-});
-
-final dueReviewCountProvider = FutureProvider<int>((ref) async {
-  final db = ref.watch(databaseProvider);
-  return db.getDueReviewCount();
-});
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final roadmapsAsync = ref.watch(roadmapsProvider);
     final dueReviewsAsync = ref.watch(dueReviewCountProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Learning Route'),
+        title: Text(l10n.appTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -57,15 +46,15 @@ class HomeScreen extends ConsumerWidget {
 
             // Progress Overview
             const SizedBox(height: 24),
-            _SectionHeader(title: 'Your Progress'),
+            _SectionHeader(title: l10n.yourProgress),
             const SizedBox(height: 12),
             _ProgressChart(roadmapsAsync: roadmapsAsync),
 
             // Active Roadmaps
             const SizedBox(height: 24),
             _SectionHeader(
-              title: 'Active Roadmaps',
-              actionLabel: 'See All',
+              title: l10n.activeRoadmaps,
+              actionLabel: l10n.searchResources,
               onActionTap: () => context.go('/roadmaps'),
             ),
             const SizedBox(height: 12),
@@ -78,9 +67,9 @@ class HomeScreen extends ConsumerWidget {
                 if (activeRoadmaps.isEmpty) {
                   return _EmptyStateCard(
                     icon: Icons.route,
-                    title: 'No active roadmaps',
-                    subtitle: 'Create your first learning roadmap',
-                    buttonLabel: 'Create Roadmap',
+                    title: l10n.noRoadmaps,
+                    subtitle: l10n.createFirstRoadmap,
+                    buttonLabel: l10n.createRoadmap,
                     onButtonTap: () => context.go('/roadmaps/create'),
                   );
                 }
@@ -98,14 +87,14 @@ class HomeScreen extends ConsumerWidget {
 
             // Quick Actions
             const SizedBox(height: 24),
-            _SectionHeader(title: 'Quick Actions'),
+            _SectionHeader(title: l10n.search),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: _QuickActionCard(
                     icon: Icons.add_circle_outline,
-                    title: 'New Roadmap',
+                    title: l10n.create,
                     onTap: () => context.go('/roadmaps/create'),
                   ),
                 ),
@@ -113,7 +102,7 @@ class HomeScreen extends ConsumerWidget {
                 Expanded(
                   child: _QuickActionCard(
                     icon: Icons.search,
-                    title: 'Find Resources',
+                    title: l10n.search,
                     onTap: () => context.go('/resources'),
                   ),
                 ),
@@ -129,6 +118,7 @@ class HomeScreen extends ConsumerWidget {
 class _WelcomeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -154,7 +144,7 @@ class _WelcomeCard extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                'Welcome Back!',
+                l10n.welcomeBack,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -164,7 +154,7 @@ class _WelcomeCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Ready to continue your learning journey?',
+            l10n.readyToContinue,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Colors.white.withValues(alpha: 0.9),
                 ),
@@ -182,6 +172,7 @@ class _DueReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return GestureDetector(
       onTap: () => context.go('/tutor'),
       child: Container(
@@ -209,7 +200,7 @@ class _DueReviewCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$reviewCount cards due for review',
+                    '$reviewCount ${l10n.flashcards}',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -217,7 +208,7 @@ class _DueReviewCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Tap to start reviewing',
+                    l10n.dueForReview,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.white.withValues(alpha: 0.8),
                         ),
@@ -276,6 +267,7 @@ class _ProgressChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -283,7 +275,7 @@ class _ProgressChart extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Weekly Activity',
+              l10n.weeklyActivity,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 24),
@@ -339,7 +331,7 @@ class _ProgressChart extends StatelessWidget {
                   ),
                 ),
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, st) => const Center(child: Text('Error loading data')),
+                error: (e, st) => Center(child: Text(AppLocalizations.of(context)!.errorLoadingData)),
               ),
             ),
           ],
@@ -370,6 +362,7 @@ class _RoadmapPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -411,7 +404,7 @@ class _RoadmapPreviewCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '0% complete',
+                      '0% ${l10n.complete}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.grey[600],
                           ),

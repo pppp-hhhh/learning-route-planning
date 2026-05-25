@@ -12,21 +12,52 @@ import 'package:ai_learning_route_planner/features/settings/presentation/screens
 import 'package:ai_learning_route_planner/features/home/presentation/screens/home_screen.dart';
 import 'package:ai_learning_route_planner/features/onboarding/presentation/screens/api_setup_screen.dart';
 import 'package:ai_learning_route_planner/core/errors/errors.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_learning_route_planner/services/ai/ai_service.dart';
+import 'package:ai_learning_route_planner/l10n/app_localizations.dart';
+import 'package:ai_learning_route_planner/core/secure/secure_key_storage.dart';
+import 'package:ai_learning_route_planner/core/secure/key_names.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
 
+// Provider type to storage key mapping
+const Map<AIProviderType, String> _providerKeyMap = {
+  AIProviderType.claude: KeyNames.claudeApiKey,
+  AIProviderType.deepseek: KeyNames.deepseekApiKey,
+  AIProviderType.openai: KeyNames.openaiApiKey,
+  AIProviderType.grok: KeyNames.grokApiKey,
+  AIProviderType.gemini: KeyNames.geminiApiKey,
+};
+
 // Auth state notifier for router redirect
+// Reads from SecureKeyStorage (which chains dart-define → .env → secure storage)
 class AuthRedirectNotifier extends ChangeNotifier {
-  final SharedPreferences _prefs;
-  static const _claudeApiKeyPref = 'claude_api_key';
+  final SecureKeyStorage _storage;
+  bool _configured = false;
 
-  AuthRedirectNotifier(this._prefs);
+  AuthRedirectNotifier(this._storage);
 
-  bool get isApiConfigured => _prefs.getString(_claudeApiKeyPref)?.isNotEmpty ?? false;
+  bool get isApiConfigured => _configured;
 
-  void refresh() => notifyListeners();
+  /// 加载当前 AI Provider 对应的 API Key 状态
+  Future<void> load() async {
+    final typeString = await _storage.read(KeyNames.aiProviderType);
+    final providerType = typeString.isNotEmpty
+        ? AIProviderType.values.firstWhere(
+            (e) => e.name == typeString,
+            orElse: () => AIProviderType.claude,
+          )
+        : AIProviderType.claude;
+
+    final keyName = _providerKeyMap[providerType] ?? KeyNames.claudeApiKey;
+    final key = await _storage.read(keyName);
+    _configured = key.isNotEmpty;
+    notifyListeners();
+  }
+
+  void refresh() {
+    load();
+  }
 }
 
 final authRedirectNotifierProvider = Provider<AuthRedirectNotifier>((ref) {
@@ -151,36 +182,37 @@ class MainShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       body: child,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _calculateSelectedIndex(context),
         onTap: (index) => _onItemTapped(index, context),
-        items: const [
+        items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home),
-            label: 'Home',
+            label: l10n.home,
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.route_outlined),
             activeIcon: Icon(Icons.route),
-            label: 'Roadmaps',
+            label: l10n.roadmaps,
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.library_books_outlined),
             activeIcon: Icon(Icons.library_books),
-            label: 'Resources',
+            label: l10n.resources,
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.chat_outlined),
             activeIcon: Icon(Icons.chat),
-            label: 'Tutor',
+            label: l10n.tutor,
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person),
-            label: 'Profile',
+            label: l10n.profile,
           ),
         ],
       ),

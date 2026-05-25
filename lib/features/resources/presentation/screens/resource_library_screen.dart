@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ai_learning_route_planner/features/roadmap/presentation/providers/providers.dart';
+import 'package:ai_learning_route_planner/core/database/app_database.dart';
+import 'package:ai_learning_route_planner/l10n/app_localizations.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ai_learning_route_planner/core/constants/app_constants.dart';
 
@@ -9,6 +12,7 @@ class ResourceLibraryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final db = ref.watch(databaseProvider);
     final resourcesAsync = ref.watch(
       StreamProvider((ref) => db.watchAllResources()),
@@ -16,7 +20,7 @@ class ResourceLibraryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Resource Library'),
+        title: Text(l10n.resourceLibrary),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -35,18 +39,20 @@ class ResourceLibraryScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final resource = resources[index];
               return _ResourceCard(
+                id: resource.id,
                 title: resource.title,
                 url: resource.url,
                 type: resource.type,
                 difficulty: resource.difficulty,
                 isBookmarked: resource.isBookmarked,
                 onTap: () => _launchUrl(resource.url),
+                onBookmarkToggle: () => _toggleBookmark(ref, resource.id, !resource.isBookmarked),
               );
             },
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Error: $error')),
+        error: (error, _) => Center(child: Text('${l10n.error}: $error')),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showSearchDialog(context, ref),
@@ -62,6 +68,14 @@ class ResourceLibraryScreen extends ConsumerWidget {
     }
   }
 
+  void _toggleBookmark(WidgetRef ref, String resourceId, bool bookmarked) async {
+    final db = ref.read(databaseProvider);
+    await db.updateResource(ResourcesCompanion(
+      id: Value(resourceId),
+      isBookmarked: Value(bookmarked),
+    ));
+  }
+
   void _showSearchDialog(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
@@ -72,20 +86,24 @@ class ResourceLibraryScreen extends ConsumerWidget {
 }
 
 class _ResourceCard extends StatelessWidget {
+  final String id;
   final String title;
   final String url;
   final String? type;
   final String? difficulty;
   final bool isBookmarked;
   final VoidCallback onTap;
+  final VoidCallback onBookmarkToggle;
 
   const _ResourceCard({
+    required this.id,
     required this.title,
     required this.url,
     this.type,
     this.difficulty,
     required this.isBookmarked,
     required this.onTap,
+    required this.onBookmarkToggle,
   });
 
   @override
@@ -160,7 +178,7 @@ class _ResourceCard extends StatelessWidget {
                       ? Theme.of(context).colorScheme.primary
                       : null,
                 ),
-                onPressed: () {},
+                onPressed: onBookmarkToggle,
               ),
             ],
           ),
@@ -237,6 +255,7 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -250,14 +269,14 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'No resources yet',
+              l10n.noResourcesYet,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: Colors.grey[600],
                   ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Resources will appear here as you explore your learning roadmaps',
+              l10n.resourcesWillAppearHere,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey[500],
                   ),
@@ -267,7 +286,7 @@ class _EmptyState extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: onSearch,
               icon: const Icon(Icons.search),
-              label: const Text('Search Resources'),
+              label: Text(l10n.searchResources),
             ),
           ],
         ),
@@ -303,9 +322,10 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
   Future<void> _performSearch() async {
     final query = _queryController.text.trim();
     final topic = _topicController.text.trim();
+    final l10n = AppLocalizations.of(context)!;
 
     if (query.isEmpty && topic.isEmpty) {
-      setState(() => _error = 'Please enter a search query or topic');
+      setState(() => _error = l10n.pleaseEnterSearchQuery);
       return;
     }
 
@@ -335,6 +355,7 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -364,7 +385,7 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
                   Row(
                     children: [
                       Text(
-                        'Search Resources',
+                        l10n.searchResourcesTitle,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -380,8 +401,8 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
                   TextField(
                     controller: _topicController,
                     decoration: InputDecoration(
-                      labelText: 'Learning Topic',
-                      hintText: 'e.g., Python, Machine Learning',
+                      labelText: l10n.learningTopic,
+                      hintText: l10n.learningTopicHint,
                       prefixIcon: const Icon(Icons.topic),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -392,8 +413,8 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
                   TextField(
                     controller: _queryController,
                     decoration: InputDecoration(
-                      labelText: 'Search Query (optional)',
-                      hintText: 'e.g., free tutorial',
+                      labelText: l10n.searchQueryOptional,
+                      hintText: l10n.searchQueryHint,
                       prefixIcon: const Icon(Icons.search),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -404,14 +425,14 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
                   DropdownButtonFormField<String>(
                     value: _selectedResourceType,
                     decoration: InputDecoration(
-                      labelText: 'Resource Type (optional)',
+                      labelText: l10n.resourceTypeOptional,
                       prefixIcon: const Icon(Icons.category),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('All')),
+                      DropdownMenuItem(value: null, child: Text(l10n.all)),
                       ...AppConstants.resourceTypes.map(
                         (type) => DropdownMenuItem(
                           value: type,
@@ -435,7 +456,7 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
                               height: 24,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('Search'),
+                          : Text(l10n.search),
                     ),
                   ),
                 ],
@@ -460,7 +481,7 @@ class _SearchSheetState extends ConsumerState<_SearchSheet> {
             if (_results != null)
               Expanded(
                 child: _results!.isEmpty
-                    ? const Center(child: Text('No results found'))
+                    ? Center(child: Text(l10n.noResultsFound))
                     : ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _results!.length,

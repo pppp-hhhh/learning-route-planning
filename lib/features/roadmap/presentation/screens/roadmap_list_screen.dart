@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:ai_learning_route_planner/features/home/presentation/screens/home_screen.dart';
+import 'package:ai_learning_route_planner/features/roadmap/presentation/providers/providers.dart';
+import 'package:ai_learning_route_planner/l10n/app_localizations.dart';
 
 class RoadmapListScreen extends ConsumerWidget {
   const RoadmapListScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final roadmapsAsync = ref.watch(roadmapsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Roadmaps'),
+        title: Text(l10n.myRoadmaps),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -31,47 +33,55 @@ class RoadmapListScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final roadmap = roadmaps[index];
               return _RoadmapCard(
+                roadmapId: roadmap.id,
                 title: roadmap.title,
                 description: roadmap.description,
                 status: roadmap.status,
-                onTap: () => context.go('/roadmaps/${roadmap.id}'),
               );
             },
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
-          child: Text('Error: $error'),
+          child: Text('${l10n.error}: $error'),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.go('/roadmaps/create'),
         icon: const Icon(Icons.add),
-        label: const Text('New Roadmap'),
+        label: Text(l10n.newRoadmap),
       ),
     );
   }
 }
 
-class _RoadmapCard extends StatelessWidget {
+class _RoadmapCard extends ConsumerWidget {
+  final String roadmapId;
   final String title;
   final String? description;
   final String status;
-  final VoidCallback onTap;
 
   const _RoadmapCard({
+    required this.roadmapId,
     required this.title,
     this.description,
     required this.status,
-    required this.onTap,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final progressAsync = ref.watch(roadmapProgressProvider(roadmapId));
+    final progress = progressAsync.whenOrNull(
+      data: (data) => data,
+    );
+    final completed = progress?['completed'] ?? 0;
+    final total = progress?['total'] ?? 1;
+    final pct = total > 0 ? completed / total : 0.0;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
-        onTap: onTap,
+        onTap: () => context.go('/roadmaps/$roadmapId'),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -125,12 +135,12 @@ class _RoadmapCard extends StatelessWidget {
               ],
               const SizedBox(height: 12),
               LinearProgressIndicator(
-                value: 0,
+                value: pct,
                 backgroundColor: Colors.grey[200],
               ),
               const SizedBox(height: 4),
               Text(
-                '0% complete',
+                '${(pct * 100).toInt()}% ${l10n.complete}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.grey[600],
                     ),
@@ -161,6 +171,7 @@ class _RoadmapCard extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -174,14 +185,14 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'No roadmaps yet',
+              l10n.noRoadmaps,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: Colors.grey[600],
                   ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Create your first learning roadmap and start your AI-powered learning journey',
+              l10n.createFirstRoadmap,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey[500],
                   ),
@@ -191,7 +202,7 @@ class _EmptyState extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: () => context.go('/roadmaps/create'),
               icon: const Icon(Icons.add),
-              label: const Text('Create Roadmap'),
+              label: Text(l10n.createRoadmap),
             ),
           ],
         ),

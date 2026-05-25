@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
+import 'package:drift/drift.dart' hide Column;
+import 'package:ai_learning_route_planner/core/database/app_database.dart';
+import 'package:ai_learning_route_planner/features/roadmap/presentation/providers/providers.dart';
+import 'package:ai_learning_route_planner/l10n/app_localizations.dart';
+import 'package:ai_learning_route_planner/services/ai/sm2_algorithm.dart';
 
 class FlashcardReviewScreen extends ConsumerStatefulWidget {
   final String roadmapId;
@@ -12,28 +18,28 @@ class FlashcardReviewScreen extends ConsumerStatefulWidget {
 }
 
 class _FlashcardReviewScreenState extends ConsumerState<FlashcardReviewScreen> {
+  final PageController _pageController = PageController();
+  List<Flashcard> _cards = [];
   int _currentIndex = 0;
   bool _isFlipped = false;
-  final PageController _pageController = PageController();
+  bool _isLoading = true;
 
-  // Mock flashcards for demonstration
-  final List<Map<String, String>> _mockCards = [
-    {
-      'question': 'What is Machine Learning?',
-      'answer':
-          'A subset of AI that enables systems to learn and improve from experience without being explicitly programmed.',
-    },
-    {
-      'question': 'What is a Neural Network?',
-      'answer':
-          'A computing system inspired by biological neural networks, consisting of interconnected nodes (neurons) that process information.',
-    },
-    {
-      'question': 'What is Supervised Learning?',
-      'answer':
-          'A type of machine learning where the algorithm learns from labeled training data to make predictions.',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadCards();
+  }
+
+  Future<void> _loadCards() async {
+    final db = ref.read(databaseProvider);
+    final cards = await db.getFlashcardsByRoadmapId(widget.roadmapId);
+    if (mounted) {
+      setState(() {
+        _cards = cards;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -46,7 +52,7 @@ class _FlashcardReviewScreenState extends ConsumerState<FlashcardReviewScreen> {
   }
 
   void _nextCard() {
-    if (_currentIndex < _mockCards.length - 1) {
+    if (_currentIndex < _cards.length - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -71,78 +77,113 @@ class _FlashcardReviewScreenState extends ConsumerState<FlashcardReviewScreen> {
     }
   }
 
+  Future<void> _rateCard(int quality) async {
+    if (_cards.isEmpty) return;
+    final card = _cards[_currentIndex];
+    final db = ref.read(databaseProvider);
+    final uuid = const Uuid();
+
+    // SM-2 calculation
+    final result = SM2Algorithm.calculate(
+      quality: quality,
+      repetitions: card.repetitions,
+      easeFactor: card.easeFactor,
+      interval: card.interval,
+    );
+
+    // Update flashcard with new SM-2 values
+    await db.updateFlashcard(FlashcardsCompanion(
+      id: Value(card.id),
+      repetitions: Value(result.repetitions),
+      easeFactor: Value(result.easeFactor),
+      interval: Value(result.interval),
+      nextReview: Value(result.nextReview.millisecondsSinceEpoch),
+    ));
+
+    // Save review record
+    await db.insertReview(ReviewsCompanion(
+      id: Value(uuid.v4()),
+      flashcardId: Value(card.id),
+      quality: Value(quality),
+      reviewedAt: Value(DateTime.now().millisecondsSinceEpoch),
+    ));
+
+    if (!mounted) return;
+
+    // Move to next card or finish
+    if (_currentIndex < _cards.length - 1) {
+      _nextCard();
+    } else {
+      setState(() => _isFlipped = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.reviewComplete)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.reviewFlashcards)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_cards.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.reviewFlashcards)),
+        body: Center(child: Text(l10n.noResults)),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Review'),
+        title: Text('${l10n.reviewFlashcards} (${_currentIndex + 1}/${_cards.length})'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('End'),
+            child: Text(l10n.end),
           ),
         ],
       ),
       body: Column(
         children: [
-          // Progress indicator
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Text(
-                  '${_currentIndex + 1} / ${_mockCards.length}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: LinearProgressIndicator(
-                    value: (_currentIndex + 1) / _mockCards.length,
-                    backgroundColor: Colors.grey[200],
-                  ),
-                ),
-              ],
-            ),
+          // Progress bar
+          LinearProgressIndicator(
+            value: (_currentIndex + 1) / _cards.length,
           ),
 
           // Flashcard
           Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              onPageChanged: (index) {
-                setState(() {
-                  _currentIndex = index;
-                  _isFlipped = false;
-                });
-              },
-              itemCount: _mockCards.length,
-              itemBuilder: (context, index) {
-                final card = _mockCards[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: GestureDetector(
-                    onTap: _flipCard,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: _isFlipped
-                          ? _Flashcard(
-                              key: const ValueKey('answer'),
-                              content: card['answer']!,
-                              label: 'Answer',
-                              color: Theme.of(context).colorScheme.secondary,
-                            )
-                          : _Flashcard(
-                              key: const ValueKey('question'),
-                              content: card['question']!,
-                              label: 'Question',
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                    ),
-                  ),
-                );
-              },
+            child: GestureDetector(
+              onTap: _flipCard,
+              child: PageView.builder(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _cards.length,
+                itemBuilder: (context, index) {
+                  final c = _cards[index];
+                  return AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _isFlipped
+                        ? _Flashcard(
+                            key: ValueKey('answer-${c.id}'),
+                            content: c.answer,
+                            label: l10n.answer,
+                            color: Theme.of(context).colorScheme.secondary,
+                          )
+                        : _Flashcard(
+                            key: ValueKey('question-${c.id}'),
+                            content: c.question,
+                            label: l10n.question,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                  );
+                },
+              ),
             ),
           ),
 
@@ -167,33 +208,33 @@ class _FlashcardReviewScreenState extends ConsumerState<FlashcardReviewScreen> {
                 children: [
                   Expanded(
                     child: _RatingButton(
-                      label: 'Again',
+                      label: l10n.again,
                       color: Colors.red,
-                      onTap: () {},
+                      onTap: () => _rateCard(SM2Algorithm.mapRatingToQuality(1)),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _RatingButton(
-                      label: 'Hard',
+                      label: l10n.hard,
                       color: Colors.orange,
-                      onTap: () {},
+                      onTap: () => _rateCard(SM2Algorithm.mapRatingToQuality(2)),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _RatingButton(
-                      label: 'Good',
+                      label: l10n.good,
                       color: Colors.green,
-                      onTap: () {},
+                      onTap: () => _rateCard(SM2Algorithm.mapRatingToQuality(3)),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _RatingButton(
-                      label: 'Easy',
-                      color: Colors.blue,
-                      onTap: () {},
+                      label: l10n.easy,
+                      color: Colors.teal,
+                      onTap: () => _rateCard(SM2Algorithm.mapRatingToQuality(4)),
                     ),
                   ),
                 ],
@@ -214,7 +255,7 @@ class _FlashcardReviewScreenState extends ConsumerState<FlashcardReviewScreen> {
                   const SizedBox(width: 48),
                   IconButton(
                     onPressed:
-                        _currentIndex < _mockCards.length - 1 ? _nextCard : null,
+                        _currentIndex < _cards.length - 1 ? _nextCard : null,
                     icon: const Icon(Icons.arrow_forward),
                     iconSize: 32,
                   ),
@@ -266,12 +307,10 @@ class _Flashcard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             Text(
               content,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+              style: Theme.of(context).textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
           ],
@@ -297,11 +336,18 @@ class _RatingButton extends StatelessWidget {
     return ElevatedButton(
       onPressed: onTap,
       style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
+        backgroundColor: color.withValues(alpha: 0.1),
+        foregroundColor: color,
         padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: color.withValues(alpha: 0.3)),
+        ),
       ),
-      child: Text(label),
+      child: Text(
+        label,
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
     );
   }
 }

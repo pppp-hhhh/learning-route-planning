@@ -1,30 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ai_learning_route_planner/l10n/app_localizations.dart';
+import 'package:ai_learning_route_planner/features/roadmap/presentation/providers/providers.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(l10n.profile),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Profile Header
-            _ProfileHeader(),
+            const _ProfileHeader(),
             const SizedBox(height: 24),
-
-            // Stats Grid
-            _StatsGrid(),
+            const _StatsGrid(),
             const SizedBox(height: 24),
-
-            // Settings List
-            _SettingsList(),
+            const _SettingsList(),
           ],
         ),
       ),
@@ -33,8 +31,11 @@ class ProfileScreen extends ConsumerWidget {
 }
 
 class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader();
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       children: [
         CircleAvatar(
@@ -49,14 +50,14 @@ class _ProfileHeader extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          'Learner',
+          l10n.learner,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
         ),
         const SizedBox(height: 4),
         Text(
-          'Learning since today',
+          l10n.learningSinceToday,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.grey[600],
               ),
@@ -66,35 +67,51 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-class _StatsGrid extends StatelessWidget {
+class _StatsGrid extends ConsumerWidget {
+  const _StatsGrid();
+
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _StatCard(
-            icon: Icons.route,
-            value: '0',
-            label: 'Roadmaps',
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.check_circle,
-            value: '0',
-            label: 'Tasks Done',
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.local_fire_department,
-            value: '0',
-            label: 'Day Streak',
-          ),
-        ),
-      ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final roadmapsAsync = ref.watch(roadmapsProvider);
+
+    return roadmapsAsync.when(
+      loading: () => const SizedBox(
+        height: 100,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (_, __) => const SizedBox(height: 100),
+      data: (roadmaps) {
+        final activeCount = roadmaps.where((r) => r.status == 'active').length;
+        // 完成任务数从数据库查询（异步）
+        return Row(
+          children: [
+            Expanded(
+              child: _StatCard(
+                icon: Icons.route,
+                value: '$activeCount',
+                label: l10n.roadmaps,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatCard(
+                icon: Icons.check_circle,
+                value: '—',
+                label: l10n.tasksDone,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatCard(
+                icon: Icons.local_fire_department,
+                value: '—',
+                label: l10n.dayStreak,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -143,43 +160,46 @@ class _StatCard extends StatelessWidget {
 }
 
 class _SettingsList extends StatelessWidget {
+  const _SettingsList();
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       child: Column(
         children: [
           _SettingsTile(
             icon: Icons.settings_outlined,
-            title: 'Settings',
-            subtitle: 'API keys, notifications, appearance',
+            title: l10n.settings,
+            subtitle: l10n.apiKeysNotificationsAppearance,
             onTap: () => context.push('/settings'),
           ),
           const Divider(height: 1),
           _SettingsTile(
             icon: Icons.sync_outlined,
-            title: 'Sync & Backup',
-            subtitle: 'Cloud sync settings',
-            onTap: () {},
+            title: l10n.syncBackup,
+            subtitle: l10n.cloudSyncSettings,
+            onTap: () => context.push('/settings'),
           ),
           const Divider(height: 1),
           _SettingsTile(
             icon: Icons.storage_outlined,
-            title: 'Data & Privacy',
-            subtitle: 'Manage your data',
-            onTap: () {},
+            title: l10n.dataPrivacy,
+            subtitle: l10n.manageYourData,
+            onTap: () => context.push('/settings'),
           ),
           const Divider(height: 1),
           _SettingsTile(
             icon: Icons.help_outline,
-            title: 'Help & Support',
-            subtitle: 'FAQs, contact us',
+            title: l10n.helpSupport,
+            subtitle: l10n.faqsContactUs,
             onTap: () {},
           ),
           const Divider(height: 1),
           _SettingsTile(
             icon: Icons.info_outline,
-            title: 'About',
-            subtitle: 'Version 1.0.0',
+            title: l10n.about,
+            subtitle: '${l10n.version} 1.0.0',
             onTap: () {},
           ),
         ],

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:ai_learning_route_planner/features/roadmap/presentation/providers/providers.dart';
+import 'package:ai_learning_route_planner/l10n/app_localizations.dart';
 
 class TutorChatScreen extends ConsumerStatefulWidget {
   const TutorChatScreen({super.key});
@@ -19,6 +22,14 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
     super.dispose();
   }
 
+  void _sendSuggestion(String text) {
+    setState(() {
+      _messages.add({'role': 'user', 'content': text});
+      _isTyping = true;
+    });
+    _callAi(text);
+  }
+
   void _sendMessage() {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
@@ -30,50 +41,55 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
 
     _messageController.clear();
 
-    // Simulate AI response
-    Future.delayed(const Duration(seconds: 1), () {
+    _callAi(text);
+  }
+
+  Future<void> _callAi(String text) async {
+    final aiService = ref.read(aiServiceProvider);
+    if (aiService == null) {
       if (mounted) {
         setState(() {
           _messages.add({
             'role': 'assistant',
-            'content': _generateResponse(text),
+            'content': 'API key not configured. Please add your API key in Settings.',
           });
           _isTyping = false;
         });
       }
-    });
-  }
-
-  String _generateResponse(String question) {
-    // Mock AI responses for demonstration
-    if (question.toLowerCase().contains('machine learning')) {
-      return 'Machine Learning is a fascinating field! Based on your roadmap, you\'re currently learning the fundamentals. Would you like me to explain how supervised learning differs from unsupervised learning?';
-    } else if (question.toLowerCase().contains('help')) {
-      return 'I\'m here to help! You can ask me about concepts in your current roadmap, request explanations of technical terms, or ask me to quiz you on what you\'ve learned so far.';
-    } else if (question.toLowerCase().contains('roadmap')) {
-      return 'Your roadmap progress looks great! You\'re currently in Phase 2: Core Concepts. Do you want me to suggest which task to focus on next?';
+      return;
     }
-    return 'That\'s a great question! As you continue with your learning journey, you\'ll find that this concept becomes clearer with practice. Would you like me to provide some examples or additional resources?';
+
+    final result = await aiService.answerQuestion(question: text, context: '');
+    if (mounted) {
+      setState(() {
+        _messages.add({
+          'role': 'assistant',
+          'content': result.content ?? result.error ?? 'No response',
+        });
+        _isTyping = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('AI Tutor'),
+            Text(l10n.aiTutor),
             Text(
-              'Learning: Machine Learning',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              l10n.learningTopics,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
             ),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {},
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -82,7 +98,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
           // Chat messages
           Expanded(
             child: _messages.isEmpty
-                ? _EmptyChat()
+                ? _EmptyChat(onSendSuggestion: _sendSuggestion)
                 : ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: _messages.length + (_isTyping ? 1 : 0),
@@ -119,7 +135,7 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
                     child: TextField(
                       controller: _messageController,
                       decoration: InputDecoration(
-                        hintText: 'Ask me anything...',
+                        hintText: l10n.askMeAnything,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                         ),
@@ -249,8 +265,12 @@ class _TypingIndicator extends StatelessWidget {
 }
 
 class _EmptyChat extends StatelessWidget {
+  final void Function(String) onSendSuggestion;
+
+  const _EmptyChat({required this.onSendSuggestion});
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -271,14 +291,14 @@ class _EmptyChat extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'Your AI Learning Tutor',
+              l10n.yourAiLearningTutor,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Ask me anything about your learning topics, request explanations, or get help with difficult concepts!',
+              l10n.askMeAnything,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.grey[600],
                   ),
@@ -291,16 +311,16 @@ class _EmptyChat extends StatelessWidget {
               alignment: WrapAlignment.center,
               children: [
                 _SuggestionChip(
-                  label: 'Explain neural networks',
-                  onTap: () {},
+                  label: l10n.explainNeuralNetworks,
+                  onTap: () => onSendSuggestion(l10n.explainNeuralNetworks),
                 ),
                 _SuggestionChip(
-                  label: 'Quiz me on Phase 1',
-                  onTap: () {},
+                  label: l10n.quizMeOnPhase,
+                  onTap: () => onSendSuggestion(l10n.quizMeOnPhase),
                 ),
                 _SuggestionChip(
-                  label: 'Suggest next task',
-                  onTap: () {},
+                  label: l10n.suggestNextTask,
+                  onTap: () => onSendSuggestion(l10n.suggestNextTask),
                 ),
               ],
             ),

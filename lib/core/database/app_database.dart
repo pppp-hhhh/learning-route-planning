@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:ai_learning_route_planner/core/constants/app_constants.dart';
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 
 part 'app_database.g.dart';
 
@@ -117,7 +118,18 @@ class AppDatabase extends _$AppDatabase {
   int get schemaVersion => 1;
 
   static QueryExecutor _openConnection() {
-    return driftDatabase(name: AppConstants.databaseName);
+    return driftDatabase(
+      name: AppConstants.databaseName,
+      web: DriftWebOptions(
+        sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+        driftWorker: Uri.parse('drift_worker.js'),
+        onResult: (result) {
+          if (result.missingFeatures.isNotEmpty) {
+            debugPrint('Missing web features: ${result.missingFeatures}');
+          }
+        },
+      ),
+    );
   }
 
   // Roadmap Operations
@@ -289,5 +301,16 @@ class AppDatabase extends _$AppDatabase {
     final total = await getTotalTaskCount(roadmapId);
     final completed = await getCompletedTaskCount(roadmapId);
     return {'total': total, 'completed': completed};
+  }
+
+  /// 清除所有数据（用于"清除数据"功能）
+  Future<void> clearAllData() async {
+    await delete(reviews).go();
+    await delete(flashcards).go();
+    await delete(taskResources).go();
+    await delete(resources).go();
+    await delete(tasks).go();
+    await delete(phases).go();
+    await delete(roadmaps).go();
   }
 }

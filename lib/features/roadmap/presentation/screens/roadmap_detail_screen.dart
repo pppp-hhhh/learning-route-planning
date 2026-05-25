@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ai_learning_route_planner/features/home/presentation/screens/home_screen.dart';
+import 'package:ai_learning_route_planner/l10n/app_localizations.dart';
+import 'package:ai_learning_route_planner/features/roadmap/presentation/providers/providers.dart';
 
 class RoadmapDetailScreen extends ConsumerWidget {
   final String roadmapId;
@@ -9,6 +10,7 @@ class RoadmapDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final db = ref.watch(databaseProvider);
 
     return FutureBuilder(
@@ -24,9 +26,17 @@ class RoadmapDetailScreen extends ConsumerWidget {
         if (roadmap == null) {
           return Scaffold(
             appBar: AppBar(),
-            body: const Center(child: Text('Roadmap not found')),
+            body: Center(child: Text(l10n.notFound)),
           );
         }
+
+        final progressAsync = ref.watch(roadmapProgressProvider(roadmapId));
+        final progress = progressAsync.whenOrNull(
+          data: (data) => data,
+        );
+        final completed = progress?['completed'] ?? 0;
+        final total = progress?['total'] ?? 1;
+        final pct = total > 0 ? completed / total : 0.0;
 
         return Scaffold(
           appBar: AppBar(
@@ -47,15 +57,15 @@ class RoadmapDetailScreen extends ConsumerWidget {
                 _ProgressCard(
                   title: roadmap.title,
                   description: roadmap.description,
-                  progress: 0,
-                  completedTasks: 0,
-                  totalTasks: 0,
+                  progress: pct,
+                  completedTasks: completed,
+                  totalTasks: total,
                 ),
                 const SizedBox(height: 24),
 
                 // Phases
                 Text(
-                  'Learning Phases',
+                  l10n.learningPhases,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -109,6 +119,7 @@ class _ProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -165,7 +176,7 @@ class _ProgressCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Progress',
+                        l10n.progress,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Colors.grey[600],
                             ),
@@ -187,7 +198,7 @@ class _ProgressCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Completed',
+                        l10n.completed,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Colors.grey[600],
                             ),
@@ -234,6 +245,7 @@ class _PhaseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
@@ -274,7 +286,7 @@ class _PhaseCard extends StatelessWidget {
           const Divider(),
           ListTile(
             leading: const Icon(Icons.task_alt),
-            title: const Text('View Tasks'),
+            title: Text(l10n.viewTasks),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {},
           ),
@@ -289,6 +301,7 @@ class _EmptyPhasesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -301,12 +314,12 @@ class _EmptyPhasesCard extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No phases yet',
+              l10n.noPhasesYet,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
             Text(
-              'Phases will appear here once the roadmap is generated',
+              l10n.phasesWillAppearHere,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey[600],
                   ),

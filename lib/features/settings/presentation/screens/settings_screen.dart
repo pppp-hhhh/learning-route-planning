@@ -17,6 +17,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _exaKeyController = TextEditingController();
   bool _obscureClaudeKey = true;
   bool _obscureExaKey = true;
+  bool _cloudSyncEnabled = false;
 
   @override
   void initState() {
@@ -34,6 +35,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _claudeKeyController.dispose();
     _exaKeyController.dispose();
     super.dispose();
+  }
+
+  void _onCloudSyncChanged(bool value) {
+    setState(() => _cloudSyncEnabled = value);
   }
 
   @override
@@ -68,7 +73,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ref.read(claudeApiKeyProvider.notifier).setKey(key);
                 ref.read(authRedirectNotifierProvider).refresh();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${l10n.claudeApiKey} saved')),
+                  SnackBar(content: Text(l10n.keySaved(l10n.claudeApiKey))),
                 );
               },
               helperText: 'console.anthropic.com',
@@ -85,7 +90,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onSave: (key) {
                 ref.read(exaApiKeyProvider.notifier).setKey(key);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${l10n.exaApiKey} saved')),
+                  SnackBar(content: Text(l10n.keySaved(l10n.exaApiKey))),
                 );
               },
               helperText: 'exa.ai',
@@ -96,7 +101,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 16),
 
             _SectionHeader(
-              title: 'Appearance',
+              title: l10n.appearance,
               icon: Icons.palette,
             ),
             const SizedBox(height: 16),
@@ -110,7 +115,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 16),
 
             _SectionHeader(
-              title: 'Search Provider',
+              title: l10n.searchProvider,
               icon: Icons.search,
             ),
             const SizedBox(height: 16),
@@ -138,25 +143,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 16),
             _SettingsTile(
               icon: Icons.cloud_sync,
-              title: 'Cloud Sync',
-              subtitle: 'Sync your data across devices',
+              title: l10n.cloudSync,
+              subtitle: l10n.syncYourData,
               trailing: Switch(
-                value: false,
-                onChanged: (value) {},
+                value: _cloudSyncEnabled,
+                onChanged: _onCloudSyncChanged,
               ),
             ),
             const SizedBox(height: 8),
             _SettingsTile(
               icon: Icons.download,
               title: l10n.exportData,
-              subtitle: 'Download your learning data',
+              subtitle: l10n.downloadYourLearningData,
               onTap: () {},
             ),
             const SizedBox(height: 8),
             _SettingsTile(
               icon: Icons.delete_forever,
               title: l10n.clearData,
-              subtitle: 'Remove all local data',
+              subtitle: l10n.removeAllLocalData,
               textColor: Colors.red,
               onTap: () {
                 _showClearDataDialog(l10n);
@@ -180,13 +185,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 8),
             _SettingsTile(
               icon: Icons.privacy_tip,
-              title: 'Privacy Policy',
+              title: l10n.privacyPolicy,
               onTap: () {},
             ),
             const SizedBox(height: 8),
             _SettingsTile(
               icon: Icons.article,
-              title: 'Terms of Service',
+              title: l10n.termsOfService,
               onTap: () {},
             ),
           ],
@@ -200,20 +205,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(l10n.clearData),
-        content: const Text(
-          'This will delete all your local roadmaps, progress, and settings. This action cannot be undone.',
-        ),
+        content: Text(l10n.thisWillDeleteAll),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(l10n.cancel),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.clearData)),
-              );
+            onPressed: () async {
+              final db = ref.read(databaseProvider);
+              await db.clearAllData();
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(l10n.clearData)),
+                );
+              }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: Text(l10n.confirm),
@@ -338,7 +345,7 @@ class _ThemeToggle extends ConsumerWidget {
           isDarkMode ? Icons.dark_mode : Icons.light_mode,
         ),
         title: Text(l10n.darkMode),
-        subtitle: Text(isDarkMode ? 'Enabled' : 'Disabled'),
+        subtitle: Text(isDarkMode ? l10n.enabled : l10n.disabled),
         trailing: Switch(
           value: isDarkMode,
           onChanged: (value) {
@@ -391,24 +398,24 @@ class _NotificationToggle extends StatelessWidget {
         children: [
           SwitchListTile(
             secondary: const Icon(Icons.alarm),
-            title: const Text('Learning Reminders'),
-            subtitle: const Text('Daily reminders to learn'),
+            title: Text(l10n.learningReminders),
+            subtitle: Text(l10n.dailyRemindersToLearn),
             value: true,
             onChanged: (value) {},
           ),
           const Divider(height: 1),
           SwitchListTile(
             secondary: const Icon(Icons.style),
-            title: const Text('Review Alerts'),
-            subtitle: const Text('Flashcard review reminders'),
+            title: Text(l10n.reviewAlerts),
+            subtitle: Text(l10n.flashcardReviewReminders),
             value: true,
             onChanged: (value) {},
           ),
           const Divider(height: 1),
           SwitchListTile(
             secondary: const Icon(Icons.emoji_events),
-            title: const Text('Achievements'),
-            subtitle: const Text('Milestone celebrations'),
+            title: Text(l10n.achievements),
+            subtitle: Text(l10n.milestoneCelebrations),
             value: false,
             onChanged: (value) {},
           ),
@@ -457,6 +464,7 @@ class _SearchProviderSelector extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final currentProvider = ref.watch(searchProviderTypeProvider);
 
     return Card(
@@ -469,18 +477,18 @@ class _SearchProviderSelector extends ConsumerWidget {
                 child: DropdownButton<SearchProviderType>(
                   value: currentProvider,
                   isExpanded: true,
-                  items: const [
+                  items: [
                     DropdownMenuItem(
                       value: SearchProviderType.exa,
-                      child: Text('Exa'),
+                      child: Text(l10n.exa),
                     ),
                     DropdownMenuItem(
                       value: SearchProviderType.tavily,
-                      child: Text('Tavily'),
+                      child: Text(l10n.tavily),
                     ),
                     DropdownMenuItem(
                       value: SearchProviderType.serpapi,
-                      child: Text('SerpAPI'),
+                      child: Text(l10n.serpapi),
                     ),
                   ],
                   onChanged: (value) {

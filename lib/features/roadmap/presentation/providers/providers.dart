@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ai_learning_route_planner/core/secure/key_names.dart';
+import 'package:ai_learning_route_planner/core/secure/secure_key_storage.dart';
 import 'package:ai_learning_route_planner/core/database/app_database.dart';
 import 'package:ai_learning_route_planner/services/ai/claude_service.dart';
 import 'package:ai_learning_route_planner/services/ai/resource_search_service.dart';
@@ -14,25 +16,22 @@ enum SearchProviderType {
   serpapi,
 }
 
-// Keys for SharedPreferences
-const String _claudeApiKeyPref = 'claude_api_key';
-const String _exaApiKeyPref = 'exa_api_key';
-const String _tavilyApiKeyPref = 'tavily_api_key';
-const String _serpapiApiKeyPref = 'serpapi_api_key';
-const String _aiProviderTypePref = 'ai_provider_type';
-const String _searchProviderTypePref = 'search_provider_type';
-
 // Database Provider
 final databaseProvider = Provider<AppDatabase>((ref) {
   return AppDatabase();
 });
 
-// SharedPreferences Provider
+// SharedPreferences Provider (for non-sensitive preferences e.g. theme)
 final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) async {
   return await SharedPreferences.getInstance();
 });
 
-// Claude API Key Provider (persisted)
+// Secure Key Storage Provider (for API keys and provider types)
+final secureKeyStorageProvider = Provider<SecureKeyStorage>((ref) {
+  return SecureKeyStorage();
+});
+
+// ── Claude API Key ──
 final claudeApiKeyProvider = StateNotifierProvider<ClaudeApiKeyNotifier, String>((ref) {
   return ClaudeApiKeyNotifier(ref);
 });
@@ -45,24 +44,144 @@ class ClaudeApiKeyNotifier extends StateNotifier<String> {
   }
 
   Future<void> _loadKey() async {
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    state = prefs.getString(_claudeApiKeyPref) ?? '';
+    final storage = ref.read(secureKeyStorageProvider);
+    state = await storage.read(KeyNames.claudeApiKey);
   }
 
   Future<void> setKey(String key) async {
     state = key;
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    await prefs.setString(_claudeApiKeyPref, key);
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.write(KeyNames.claudeApiKey, key);
   }
 
   Future<void> clearKey() async {
     state = '';
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    await prefs.remove(_claudeApiKeyPref);
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.delete(KeyNames.claudeApiKey);
   }
 }
 
-// Exa API Key Provider (persisted)
+// ── DeepSeek API Key ──
+final deepseekApiKeyProvider = StateNotifierProvider<DeepseekApiKeyNotifier, String>((ref) {
+  return DeepseekApiKeyNotifier(ref);
+});
+
+class DeepseekApiKeyNotifier extends StateNotifier<String> {
+  final Ref ref;
+
+  DeepseekApiKeyNotifier(this.ref) : super('') {
+    _loadKey();
+  }
+
+  Future<void> _loadKey() async {
+    final storage = ref.read(secureKeyStorageProvider);
+    state = await storage.read(KeyNames.deepseekApiKey);
+  }
+
+  Future<void> setKey(String key) async {
+    state = key;
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.write(KeyNames.deepseekApiKey, key);
+  }
+
+  Future<void> clearKey() async {
+    state = '';
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.delete(KeyNames.deepseekApiKey);
+  }
+}
+
+// ── OpenAI API Key ──
+final openaiApiKeyProvider = StateNotifierProvider<OpenaiApiKeyNotifier, String>((ref) {
+  return OpenaiApiKeyNotifier(ref);
+});
+
+class OpenaiApiKeyNotifier extends StateNotifier<String> {
+  final Ref ref;
+
+  OpenaiApiKeyNotifier(this.ref) : super('') {
+    _loadKey();
+  }
+
+  Future<void> _loadKey() async {
+    final storage = ref.read(secureKeyStorageProvider);
+    state = await storage.read(KeyNames.openaiApiKey);
+  }
+
+  Future<void> setKey(String key) async {
+    state = key;
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.write(KeyNames.openaiApiKey, key);
+  }
+
+  Future<void> clearKey() async {
+    state = '';
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.delete(KeyNames.openaiApiKey);
+  }
+}
+
+// ── Grok API Key ──
+final grokApiKeyProvider = StateNotifierProvider<GrokApiKeyNotifier, String>((ref) {
+  return GrokApiKeyNotifier(ref);
+});
+
+class GrokApiKeyNotifier extends StateNotifier<String> {
+  final Ref ref;
+
+  GrokApiKeyNotifier(this.ref) : super('') {
+    _loadKey();
+  }
+
+  Future<void> _loadKey() async {
+    final storage = ref.read(secureKeyStorageProvider);
+    state = await storage.read(KeyNames.grokApiKey);
+  }
+
+  Future<void> setKey(String key) async {
+    state = key;
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.write(KeyNames.grokApiKey, key);
+  }
+
+  Future<void> clearKey() async {
+    state = '';
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.delete(KeyNames.grokApiKey);
+  }
+}
+
+// ── Gemini API Key ──
+final geminiApiKeyProvider = StateNotifierProvider<GeminiApiKeyNotifier, String>((ref) {
+  return GeminiApiKeyNotifier(ref);
+});
+
+class GeminiApiKeyNotifier extends StateNotifier<String> {
+  final Ref ref;
+
+  GeminiApiKeyNotifier(this.ref) : super('') {
+    _loadKey();
+  }
+
+  Future<void> _loadKey() async {
+    final storage = ref.read(secureKeyStorageProvider);
+    state = await storage.read(KeyNames.geminiApiKey);
+  }
+
+  Future<void> setKey(String key) async {
+    state = key;
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.write(KeyNames.geminiApiKey, key);
+  }
+
+  Future<void> clearKey() async {
+    state = '';
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.delete(KeyNames.geminiApiKey);
+  }
+}
+
+// ── Exa API Key ──
 final exaApiKeyProvider = StateNotifierProvider<ExaApiKeyNotifier, String>((ref) {
   return ExaApiKeyNotifier(ref);
 });
@@ -75,24 +194,24 @@ class ExaApiKeyNotifier extends StateNotifier<String> {
   }
 
   Future<void> _loadKey() async {
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    state = prefs.getString(_exaApiKeyPref) ?? '';
+    final storage = ref.read(secureKeyStorageProvider);
+    state = await storage.read(KeyNames.exaApiKey);
   }
 
   Future<void> setKey(String key) async {
     state = key;
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    await prefs.setString(_exaApiKeyPref, key);
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.write(KeyNames.exaApiKey, key);
   }
 
   Future<void> clearKey() async {
     state = '';
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    await prefs.remove(_exaApiKeyPref);
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.delete(KeyNames.exaApiKey);
   }
 }
 
-// Tavily API Key Provider (persisted)
+// ── Tavily API Key ──
 final tavilyApiKeyProvider = StateNotifierProvider<TavilyApiKeyNotifier, String>((ref) {
   return TavilyApiKeyNotifier(ref);
 });
@@ -105,24 +224,24 @@ class TavilyApiKeyNotifier extends StateNotifier<String> {
   }
 
   Future<void> _loadKey() async {
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    state = prefs.getString(_tavilyApiKeyPref) ?? '';
+    final storage = ref.read(secureKeyStorageProvider);
+    state = await storage.read(KeyNames.tavilyApiKey);
   }
 
   Future<void> setKey(String key) async {
     state = key;
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    await prefs.setString(_tavilyApiKeyPref, key);
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.write(KeyNames.tavilyApiKey, key);
   }
 
   Future<void> clearKey() async {
     state = '';
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    await prefs.remove(_tavilyApiKeyPref);
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.delete(KeyNames.tavilyApiKey);
   }
 }
 
-// SerpAPI Key Provider (persisted)
+// ── SerpAPI Key ──
 final serpapiApiKeyProvider = StateNotifierProvider<SerpapiApiKeyNotifier, String>((ref) {
   return SerpapiApiKeyNotifier(ref);
 });
@@ -135,24 +254,24 @@ class SerpapiApiKeyNotifier extends StateNotifier<String> {
   }
 
   Future<void> _loadKey() async {
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    state = prefs.getString(_serpapiApiKeyPref) ?? '';
+    final storage = ref.read(secureKeyStorageProvider);
+    state = await storage.read(KeyNames.serpapiApiKey);
   }
 
   Future<void> setKey(String key) async {
     state = key;
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    await prefs.setString(_serpapiApiKeyPref, key);
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.write(KeyNames.serpapiApiKey, key);
   }
 
   Future<void> clearKey() async {
     state = '';
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    await prefs.remove(_serpapiApiKeyPref);
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.delete(KeyNames.serpapiApiKey);
   }
 }
 
-// Search Provider Type Provider (persisted)
+// ── Search Provider Type ──
 final searchProviderTypeProvider =
     StateNotifierProvider<SearchProviderTypeNotifier, SearchProviderType>((ref) {
   return SearchProviderTypeNotifier(ref);
@@ -166,9 +285,9 @@ class SearchProviderTypeNotifier extends StateNotifier<SearchProviderType> {
   }
 
   Future<void> _loadType() async {
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    final typeString = prefs.getString(_searchProviderTypePref);
-    if (typeString != null) {
+    final storage = ref.read(secureKeyStorageProvider);
+    final typeString = await storage.read(KeyNames.searchProviderType);
+    if (typeString.isNotEmpty) {
       state = SearchProviderType.values.firstWhere(
         (e) => e.name == typeString,
         orElse: () => SearchProviderType.exa,
@@ -178,12 +297,12 @@ class SearchProviderTypeNotifier extends StateNotifier<SearchProviderType> {
 
   Future<void> setProvider(SearchProviderType type) async {
     state = type;
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    await prefs.setString(_searchProviderTypePref, type.name);
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.write(KeyNames.searchProviderType, type.name);
   }
 }
 
-// AI Provider Type Provider (persisted)
+// ── AI Provider Type ──
 final aiProviderTypeProvider =
     StateNotifierProvider<AIProviderTypeNotifier, AIProviderType>((ref) {
   return AIProviderTypeNotifier(ref);
@@ -197,9 +316,9 @@ class AIProviderTypeNotifier extends StateNotifier<AIProviderType> {
   }
 
   Future<void> _loadType() async {
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    final typeString = prefs.getString(_aiProviderTypePref);
-    if (typeString != null) {
+    final storage = ref.read(secureKeyStorageProvider);
+    final typeString = await storage.read(KeyNames.aiProviderType);
+    if (typeString.isNotEmpty) {
       state = AIProviderType.values.firstWhere(
         (e) => e.name == typeString,
         orElse: () => AIProviderType.claude,
@@ -209,21 +328,38 @@ class AIProviderTypeNotifier extends StateNotifier<AIProviderType> {
 
   Future<void> setProvider(AIProviderType type) async {
     state = type;
-    final prefs = await ref.read(sharedPreferencesProvider.future);
-    await prefs.setString(_aiProviderTypePref, type.name);
+    final storage = ref.read(secureKeyStorageProvider);
+    await storage.write(KeyNames.aiProviderType, type.name);
+  }
+}
+
+// Helper function to get API key for a specific AI provider type
+String _getApiKeyForProvider(Ref ref, AIProviderType type) {
+  switch (type) {
+    case AIProviderType.claude:
+      return ref.read(claudeApiKeyProvider);
+    case AIProviderType.deepseek:
+      return ref.read(deepseekApiKeyProvider);
+    case AIProviderType.openai:
+      return ref.read(openaiApiKeyProvider);
+    case AIProviderType.grok:
+      return ref.read(grokApiKeyProvider);
+    case AIProviderType.gemini:
+      return ref.read(geminiApiKeyProvider);
   }
 }
 
 // Check if API is configured
 final isApiConfiguredProvider = Provider<bool>((ref) {
-  final apiKey = ref.watch(claudeApiKeyProvider);
+  final providerType = ref.watch(aiProviderTypeProvider);
+  final apiKey = _getApiKeyForProvider(ref, providerType);
   return apiKey.isNotEmpty;
 });
 
 // Service Providers
 final aiServiceProvider = Provider<AIService?>((ref) {
-  final apiKey = ref.watch(claudeApiKeyProvider);
   final providerType = ref.watch(aiProviderTypeProvider);
+  final apiKey = _getApiKeyForProvider(ref, providerType);
   if (apiKey.isEmpty) return null;
   return AIService(providerType: providerType, apiKey: apiKey);
 });
@@ -345,11 +481,11 @@ class RoadmapGenerationNotifier extends StateNotifier<RoadmapGenerationState> {
     required String difficulty,
     required int dailyMinutes,
   }) async {
-    final claudeService = ref.read(claudeServiceProvider);
-    if (claudeService == null) {
+    final aiService = ref.read(aiServiceProvider);
+    if (aiService == null) {
       state = state.copyWith(
         isGenerating: false,
-        error: 'Claude API key not configured. Please add your API key in Settings.',
+        error: 'API key not configured. Please add your API key in Settings.',
       );
       return;
     }
@@ -357,13 +493,20 @@ class RoadmapGenerationNotifier extends StateNotifier<RoadmapGenerationState> {
     state = state.copyWith(isGenerating: true, error: null);
 
     try {
-      final json = await claudeService.generateRoadmap(
+      final result = await aiService.generateRoadmap(
         goal: goal,
         timeframe: timeframe,
         difficulty: difficulty,
         dailyMinutes: dailyMinutes,
       );
-      state = state.copyWith(isGenerating: false, generatedJson: json);
+      if (result.success && result.content != null) {
+        state = state.copyWith(isGenerating: false, generatedJson: result.content);
+      } else {
+        state = state.copyWith(
+          isGenerating: false,
+          error: result.error ?? 'Failed to generate roadmap',
+        );
+      }
     } catch (e) {
       state = state.copyWith(isGenerating: false, error: e.toString());
     }

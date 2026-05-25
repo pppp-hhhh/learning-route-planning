@@ -29,6 +29,45 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
   String? _errorMessage;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInitialKeys();
+    });
+  }
+
+  void _loadInitialKeys() {
+    // Load saved AI provider type
+    final savedProviderType = ref.read(aiProviderTypeProvider);
+    setState(() {
+      _selectedProvider = savedProviderType;
+    });
+
+    // Load the API key for the saved provider
+    _apiKeyController.text = _getSavedApiKeyForProvider(savedProviderType);
+
+    // Load search API keys
+    _exaKeyController.text = ref.read(exaApiKeyProvider);
+    _tavilyKeyController.text = ref.read(tavilyApiKeyProvider);
+    _serpapiKeyController.text = ref.read(serpapiApiKeyProvider);
+  }
+
+  String _getSavedApiKeyForProvider(AIProviderType type) {
+    switch (type) {
+      case AIProviderType.claude:
+        return ref.read(claudeApiKeyProvider);
+      case AIProviderType.deepseek:
+        return ref.read(deepseekApiKeyProvider);
+      case AIProviderType.openai:
+        return ref.read(openaiApiKeyProvider);
+      case AIProviderType.grok:
+        return ref.read(grokApiKeyProvider);
+      case AIProviderType.gemini:
+        return ref.read(geminiApiKeyProvider);
+    }
+  }
+
+  @override
   void dispose() {
     _apiKeyController.dispose();
     _exaKeyController.dispose();
@@ -79,11 +118,27 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
       _errorMessage = null;
     });
 
-    // 保存 API keys
-    await ref.read(claudeApiKeyProvider.notifier).setKey(apiKey);
+    // Save AI API key to the correct provider's storage
+    switch (_selectedProvider) {
+      case AIProviderType.claude:
+        await ref.read(claudeApiKeyProvider.notifier).setKey(apiKey);
+        break;
+      case AIProviderType.deepseek:
+        await ref.read(deepseekApiKeyProvider.notifier).setKey(apiKey);
+        break;
+      case AIProviderType.openai:
+        await ref.read(openaiApiKeyProvider.notifier).setKey(apiKey);
+        break;
+      case AIProviderType.grok:
+        await ref.read(grokApiKeyProvider.notifier).setKey(apiKey);
+        break;
+      case AIProviderType.gemini:
+        await ref.read(geminiApiKeyProvider.notifier).setKey(apiKey);
+        break;
+    }
     await ref.read(aiProviderTypeProvider.notifier).setProvider(_selectedProvider);
 
-    // 保存搜索 API keys
+    // Save search API keys
     final exaKey = _exaKeyController.text.trim();
     if (exaKey.isNotEmpty) {
       await ref.read(exaApiKeyProvider.notifier).setKey(exaKey);
@@ -126,7 +181,7 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
         _isVerifying = false;
         _errorMessage = result.error ?? l10n.apiVerificationFailed;
       });
-      await ref.read(claudeApiKeyProvider.notifier).clearKey();
+      // Don't clear the key - let user retry with the same key
     }
   }
 
@@ -222,7 +277,12 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
           children: AIProviderConfig.providers.map((provider) {
             final isSelected = _selectedProvider == provider.type;
             return GestureDetector(
-              onTap: () => setState(() => _selectedProvider = provider.type),
+              onTap: () {
+                setState(() {
+                  _selectedProvider = provider.type;
+                  _apiKeyController.text = _getSavedApiKeyForProvider(provider.type);
+                });
+              },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(
@@ -419,7 +479,7 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
         Row(
           children: [
             Text(
-              'Tavily API Key (${l10n.optional})',
+              '${l10n.tavilyApiKey} (${l10n.optional})',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -431,8 +491,8 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
                 color: Colors.green.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Text(
-                'AI Search',
+              child: Text(
+                l10n.aiSearch,
                 style: TextStyle(
                   color: Colors.green,
                   fontSize: 12,
@@ -469,7 +529,7 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'tavily.com — 1000 requests/month free.',
+          l10n.tavilyDescription,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Colors.grey[600],
               ),
@@ -485,7 +545,7 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
         Row(
           children: [
             Text(
-              'SerpAPI Key (${l10n.optional})',
+              '${l10n.serpapiApiKey} (${l10n.optional})',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -497,8 +557,8 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
                 color: Colors.blue.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Text(
-                'Google Search',
+              child: Text(
+                l10n.googleSearch,
                 style: TextStyle(
                   color: Colors.blue,
                   fontSize: 12,
@@ -535,7 +595,7 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'serpapi.com — 100 searches/month free.',
+          l10n.serpapiDescription,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Colors.grey[600],
               ),

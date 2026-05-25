@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import 'package:ai_learning_route_planner/core/database/app_database.dart';
 import 'package:ai_learning_route_planner/core/constants/app_constants.dart';
 import 'package:ai_learning_route_planner/features/roadmap/presentation/providers/providers.dart';
+import 'package:ai_learning_route_planner/l10n/app_localizations.dart';
 
 class RoadmapCreateScreen extends ConsumerStatefulWidget {
   const RoadmapCreateScreen({super.key});
@@ -47,6 +48,7 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
 
   Future<void> _generateRoadmapWithAI() async {
     if (!_formKey.currentState!.validate()) return;
+    final l10n = AppLocalizations.of(context)!;
 
     final generationNotifier = ref.read(roadmapGenerationProvider.notifier);
 
@@ -61,7 +63,7 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
 
     if (state.error != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${state.error}')),
+        SnackBar(content: Text('${l10n.error}: ${state.error}')),
       );
     } else if (state.generatedJson != null && mounted) {
       await _saveRoadmap(state.generatedJson!);
@@ -69,6 +71,7 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
   }
 
   Future<void> _saveRoadmap(String generatedJson) async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       final db = ref.read(databaseProvider);
       final uuid = const Uuid();
@@ -123,14 +126,14 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Roadmap created with AI!')),
+          SnackBar(content: Text(l10n.roadmapCreatedWithAi)),
         );
         context.go('/roadmaps/$roadmapId');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving roadmap: $e')),
+          SnackBar(content: Text('${l10n.errorSavingRoadmap}: $e')),
         );
       }
     }
@@ -138,11 +141,12 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final generationState = ref.watch(roadmapGenerationProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Roadmap'),
+        title: Text(l10n.createRoadmap),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -155,7 +159,7 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
               const SizedBox(height: 32),
 
               Text(
-                'Roadmap Title',
+                l10n.roadmapTitle,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -163,12 +167,12 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g., Learn Machine Learning',
+                decoration: InputDecoration(
+                  hintText: l10n.explainNeuralNetworks,
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a title';
+                    return l10n.pleaseEnterATitle;
                   }
                   return null;
                 },
@@ -176,7 +180,7 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
               const SizedBox(height: 24),
 
               Text(
-                'Description (optional)',
+                l10n.roadmapDescription,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -184,15 +188,15 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(
-                  hintText: 'Brief description of your learning goal',
+                decoration: InputDecoration(
+                  hintText: l10n.briefDescriptionOfYourLearningGoal,
                 ),
                 maxLines: 2,
               ),
               const SizedBox(height: 24),
 
               Text(
-                'Learning Goal',
+                l10n.goal,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -200,16 +204,15 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _goalController,
-                decoration: const InputDecoration(
-                  hintText:
-                      'e.g., I want to become a machine learning engineer in 6 months',
+                decoration: InputDecoration(
+                  hintText: l10n.iWantToBecome,
                 ),
                 maxLines: 3,
               ),
               const SizedBox(height: 24),
 
               Text(
-                'Timeframe',
+                l10n.timeframe,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -218,8 +221,15 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
               Wrap(
                 spacing: 8,
                 children: _timeframes.map((tf) {
+                  final label = switch (tf) {
+                    '1 month' => l10n.oneMonth,
+                    '3 months' => l10n.threeMonths,
+                    '6 months' => l10n.sixMonths,
+                    '12 months' => l10n.twelveMonths,
+                    _ => tf,
+                  };
                   return ChoiceChip(
-                    label: Text(tf),
+                    label: Text(label),
                     selected: _selectedTimeframe == tf,
                     onSelected: (selected) {
                       if (selected) {
@@ -232,7 +242,7 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
               const SizedBox(height: 24),
 
               Text(
-                'Difficulty Level',
+                l10n.difficultyLevel,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -241,8 +251,14 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
               Wrap(
                 spacing: 8,
                 children: _difficulties.map((diff) {
+                  final label = switch (diff) {
+                    'beginner' => l10n.beginner,
+                    'intermediate' => l10n.intermediate,
+                    'advanced' => l10n.advanced,
+                    _ => diff[0].toUpperCase() + diff.substring(1),
+                  };
                   return ChoiceChip(
-                    label: Text(diff[0].toUpperCase() + diff.substring(1)),
+                    label: Text(label),
                     selected: _selectedDifficulty == diff,
                     onSelected: (selected) {
                       if (selected) {
@@ -255,7 +271,7 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
               const SizedBox(height: 24),
 
               Text(
-                'Daily Commitment: $_dailyMinutes minutes',
+                l10n.dailyCommitment(_dailyMinutes),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -268,7 +284,7 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
                 divisions:
                     (AppConstants.maxDailyMinutes - AppConstants.minDailyMinutes) ~/
                         15,
-                label: '$_dailyMinutes min',
+                label: '$_dailyMinutes ${l10n.minShort}',
                 onChanged: (value) {
                   setState(() => _dailyMinutes = value.round());
                 },
@@ -283,24 +299,24 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
                       ? null
                       : _generateRoadmapWithAI,
                   child: generationState.isGenerating
-                      ? const Row(
+                      ? Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            SizedBox(
+                            const SizedBox(
                               width: 24,
                               height: 24,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             ),
-                            SizedBox(width: 12),
-                            Text('Generating with AI...'),
+                            const SizedBox(width: 12),
+                            Text(l10n.generatingWithAi),
                           ],
                         )
-                      : const Row(
+                      : Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.auto_awesome),
-                            SizedBox(width: 8),
-                            Text('Generate Roadmap with AI'),
+                            const Icon(Icons.auto_awesome),
+                            const SizedBox(width: 8),
+                            Text(l10n.generateRoadmapWithAi),
                           ],
                         ),
                 ),
@@ -338,6 +354,7 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
 class _HeaderSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -369,14 +386,14 @@ class _HeaderSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'AI-Powered Roadmap',
+                  l10n.aiPoweredRoadmap,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Tell us your learning goal and our AI will create a personalized learning path',
+                  l10n.tellUsYourLearningGoal,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Colors.grey[600],
                       ),

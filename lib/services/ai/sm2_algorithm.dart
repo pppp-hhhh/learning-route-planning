@@ -77,14 +77,18 @@ class SM2Algorithm {
   static List<int> getQualityOptions() => [0, 1, 2, 3, 4, 5];
 
   static int mapRatingToQuality(int rating) {
-    // Maps 1-4 star rating to 0-5 quality scale
+    // Maps rating buttons to SM-2 quality scale:
+    //   Again (1) → 0 (complete blackout, incorrect)
+    //   Hard  (2) → 3 (correct with serious difficulty)
+    //   Good  (3) → 4 (correct with some hesitation)
+    //   Easy  (4) → 5 (perfect response)
     switch (rating) {
       case 1:
         return 0;
       case 2:
-        return 2;
-      case 3:
         return 3;
+      case 3:
+        return 4;
       case 4:
         return 5;
       default:
