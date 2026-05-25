@@ -70,7 +70,7 @@ class _RoadmapCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
     final progressAsync = ref.watch(roadmapProgressProvider(roadmapId));
     final progress = progressAsync.whenOrNull(
       data: (data) => data,
@@ -78,8 +78,15 @@ class _RoadmapCard extends ConsumerWidget {
     final completed = progress?['completed'] ?? 0;
     final total = progress?['total'] ?? 1;
     final pct = total > 0 ? completed / total : 0.0;
+    final color = _getStatusColor(status);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: color.withValues(alpha: 0.15)),
+      ),
       child: InkWell(
         onTap: () => context.go('/roadmaps/$roadmapId'),
         borderRadius: BorderRadius.circular(12),
@@ -88,62 +95,122 @@ class _RoadmapCard extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 顶部：状态 + 图标
               Row(
                 children: [
+                  _StatusBadge(status: status, color: color),
+                  const Spacer(),
+                  Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // 标题 + 描述
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
-                      color: _getStatusColor(status).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
+                      color: color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text(
-                      status.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: _getStatusColor(status),
-                      ),
+                    child: Icon(
+                      status == 'completed' ? Icons.check_circle : Icons.route,
+                      color: color,
+                      size: 22,
                     ),
                   ),
-                  const Spacer(),
-                  Icon(
-                    Icons.chevron_right,
-                    color: Colors.grey[400],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (description != null && description!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              description!,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.grey[500],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              const SizedBox(height: 16),
+
+              // 进度条 + 任务数
+              Row(
+                children: [
+                  Expanded(
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: pct),
+                      duration: const Duration(milliseconds: 800),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) {
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: value,
+                            backgroundColor: Colors.grey[200],
+                            color: color,
+                            minHeight: 6,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '${(pct * 100).toInt()}%',
+                    style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
+                      color: color,
                     ),
+                  ),
+                ],
               ),
-              if (description != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  description!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              const SizedBox(height: 12),
-              LinearProgressIndicator(
-                value: pct,
-                backgroundColor: Colors.grey[200],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${(pct * 100).toInt()}% ${l10n.complete}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
+              const SizedBox(height: 6),
+
+              // 底部：任务摘要
+              Row(
+                children: [
+                  Icon(Icons.task_alt, size: 14, color: Colors.grey[400]),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$completed / $total 任务',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[400],
                     ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    status == 'active'
+                        ? '进行中'
+                        : status == 'completed'
+                            ? '已完成'
+                            : status,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[400],
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -155,16 +222,65 @@ class _RoadmapCard extends ConsumerWidget {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'active':
-        return Colors.green;
+        return const Color(0xFF4CAF50);
       case 'paused':
-        return Colors.orange;
+        return const Color(0xFFFF9800);
       case 'completed':
-        return Colors.blue;
+        return const Color(0xFF2196F3);
       case 'abandoned':
         return Colors.grey;
       default:
         return Colors.grey;
     }
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final String status;
+  final Color color;
+
+  const _StatusBadge({required this.status, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final IconData icon;
+    final String label;
+    switch (status) {
+      case 'active':
+        icon = Icons.play_arrow;
+        label = '进行中';
+      case 'paused':
+        icon = Icons.pause;
+        label = '已暂停';
+      case 'completed':
+        icon = Icons.check;
+        label = '已完成';
+      default:
+        icon = Icons.circle;
+        label = status;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

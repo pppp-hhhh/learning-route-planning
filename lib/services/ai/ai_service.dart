@@ -201,7 +201,7 @@ class AIService {
       case AIProviderType.claude:
         return jsonEncode({
           'model': model,
-          'max_tokens': 4096,
+          'max_tokens': 8192,
           'messages': [
             {'role': 'user', 'content': prompt}
           ],
@@ -211,6 +211,7 @@ class AIService {
       case AIProviderType.grok:
         return jsonEncode({
           'model': model,
+          'max_tokens': 8192,
           'messages': [
             {'role': 'user', 'content': prompt}
           ],
@@ -261,37 +262,61 @@ class AIService {
     required int dailyMinutes,
   }) {
     return '''
-你是一位专业的学习路径规划师。请为以下学习目标创建一个结构化的学习路线图。
+你是一位顶级教材作者。请写一本关于以下主题的**教科书式学习路线图**，风格类似《The Rust Programming Language》(TRPL) 中文版。
 
 学习目标: $goal
 时间范围: $timeframe
 每日投入时间: $dailyMinutes 分钟
 难度偏好: $difficulty
 
-请生成一个JSON格式的学习路线图，包含以下结构：
+## 要求
+
+输出 JSON 格式，每个阶段就是书的一章，每个任务就是一节。结构如下：
+
 {
   "phases": [
     {
-      "title": "阶段标题",
-      "description": "阶段描述",
+      "title": "第1章：阶段标题",
+      "description": "本章学习目标（3-5条，用 **粗体** 标重点）。概述本章讲什么、为什么重要、前置知识。300-500字。",
+      "weeks": 占用周数,
       "tasks": [
         {
-          "title": "任务标题",
-          "description": "任务描述",
-          "estimated_minutes": 预估分钟数,
-          "type": "learning|practice|review"
+          "title": "小节标题（具体可操作，如"3.1 变量与可变性"）",
+          "description": "本节内容（300-500字），必须包含：\n1️⃣ 核心概念解释（像教科书一样讲清楚"为什么"）\n2️⃣ **代码示例**（用代码块展示，必须有实际可运行的代码）\n3️⃣ 关键知识点总结\n4️⃣ 注意事项/常见坑\n",
+          "estimated_minutes": 分钟,
+          "type": "learning|practice|project|review",
+          "exercises": ["练习题1", "练习题2", "练习题3（思考题）"],
+          "deliverable": "本节学完后的产出"
         }
-      ]
+      ],
+      "project": {
+        "title": "本章实战项目",
+        "description": "综合运用本章知识做一个项目，描述项目需求和步骤"
+      },
+      "summary": "本章总结（3-5条核心收获）"
     }
   ]
 }
 
-要求：
-- 3-6个主要阶段
-- 每个阶段3-8个任务
-- 任务应该具体、可执行
-- 确保学习顺序合理（从基础到高级）
-- 总时长应该符合目标时间范围
+## 结构要求
+
+每章（phase）的结构：
+1. **学习目标** — 3-5条，让读者知道学完能做什么
+2. **若干节（tasks）** — 每节讲透一个知识点
+3. **实战项目** — 综合运用本章知识
+4. **本章总结** — 复习要点
+
+每节（task）必须有：
+- 概念讲解 + **代码示例**（放代码块里）
+- 关键知识点总结
+- 练习题（至少2道）
+
+## 风格要求
+- 像教科书一样：概念 → 为什么 → 怎么做 → 例子 → 练习
+- 语言通俗但有深度，初学者能看懂，进阶者有收获
+- 代码示例必须是**真实可运行的**，不能是伪代码
+- 根据 $difficulty 调整深度，$dailyMinutes 分钟/天安排时间
+- 总时间跨度符合 $timeframe
 
 请只返回JSON，不要有其他内容。
 ''';

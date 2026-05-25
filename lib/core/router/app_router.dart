@@ -40,8 +40,12 @@ class AuthRedirectNotifier extends ChangeNotifier {
   bool get isApiConfigured => _configured;
 
   /// 加载当前 AI Provider 对应的 API Key 状态
+  ///
+  /// 使用 resolve() 而非 read()，确保走 dart-define → .env → Secure Storage 优先级链。
   Future<void> load() async {
-    final typeString = await _storage.read(KeyNames.aiProviderType);
+    final typeString = await _storage.resolve(
+      key: KeyNames.aiProviderType,
+    );
     final providerType = typeString.isNotEmpty
         ? AIProviderType.values.firstWhere(
             (e) => e.name == typeString,
@@ -50,7 +54,7 @@ class AuthRedirectNotifier extends ChangeNotifier {
         : AIProviderType.claude;
 
     final keyName = _providerKeyMap[providerType] ?? KeyNames.claudeApiKey;
-    final key = await _storage.read(keyName);
+    final key = await _storage.resolve(key: keyName);
     _configured = key.isNotEmpty;
     notifyListeners();
   }

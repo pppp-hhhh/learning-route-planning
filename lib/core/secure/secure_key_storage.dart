@@ -1,6 +1,7 @@
-import 'dart:io' show File;
+import 'dart:io' show File, Directory, Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:path_provider/path_provider.dart';
 import 'key_names.dart';
 
 /// API Key 三层优先级链存储
@@ -17,21 +18,56 @@ class SecureKeyStorage {
 
   Map<String, String>? _envCache;
 
+  /// 搜索 .env 文件的可能位置
+  ///
+  /// 优先级：工作目录 → 应用文档目录 → 可执行文件目录
+  Future<List<File>> _findEnvCandidates() async {
+    final candidates = <File>[
+      File('.env'),                                          // 1. 当前工作目录（debug 模式）
+      File('${Directory.current.path}${Platform.pathSeparator}.env'),
+    ];
+    // 2. 应用文档目录（release 模式）
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      candidates.add(File('${docsDir.path}${Platform.pathSeparator}.env'));
+    } catch (_) {}
+    // 3. 可执行文件所在目录
+    try {
+      final exeDir = File(Platform.resolvedExecutable).parent;
+      candidates.add(File('${exeDir.path}${Platform.pathSeparator}.env'));
+    } catch (_) {}
+    return candidates;
+  }
+
   /// 从 .env 文件加载环境变量（仅非 Web 平台）
   Future<Map<String, String>> _loadDotEnv() async {
     if (_envCache != null) return _envCache!;
     final map = <String, String>{};
+    if (kIsWeb) {
+      _envCache = map;
+      return map;
+    }
+
+    File? foundFile;
+    final candidates = await _findEnvCandidates();
+    for (final file in candidates) {
+      try {
+        if (await file.exists()) {
+          foundFile = file;
+          debugPrint('[SecureKeyStorage] 找到 .env: ${file.path}');
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (foundFile == null) {
+      debugPrint('[SecureKeyStorage] 未找到 .env 文件（已尝试 ${candidates.length} 个路径）');
+      _envCache = map;
+      return map;
+    }
+
     try {
-      if (kIsWeb) {
-        _envCache = map;
-        return map;
-      }
-      final file = File('.env');
-      if (!await file.exists()) {
-        _envCache = map;
-        return map;
-      }
-      final lines = await file.readAsLines();
+      final lines = await foundFile.readAsLines();
       for (final line in lines) {
         final trimmed = line.trim();
         if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
@@ -43,8 +79,8 @@ class SecureKeyStorage {
           map[key] = value;
         }
       }
-    } catch (_) {
-      // 静默失败（文件不存在或不可读）
+    } catch (e) {
+      debugPrint('[SecureKeyStorage] 读取 .env 失败: $e');
     }
     _envCache = map;
     return map;
@@ -121,9 +157,12 @@ class SecureKeyStorage {
     return read(key);
   }
 
-  /// 对所有已知 API Key 运行 resolve()
+  /// 对所有已知 key（API keys + provider types）运行 resolve()
+  ///
+  /// 按优先级链 dart-define → .env → Secure Storage 依次查找，
+  /// 高优先级源的值会被自动持久化到 Secure Storage。
   Future<void> resolveAll() async {
-    for (final key in KeyNames.allApiKeys) {
+    for (final key in KeyNames.allResolvableKeys) {
       await resolve(key: key);
     }
   }

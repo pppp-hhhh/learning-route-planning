@@ -333,33 +333,30 @@ class AIProviderTypeNotifier extends StateNotifier<AIProviderType> {
   }
 }
 
-// Helper function to get API key for a specific AI provider type
-String _getApiKeyForProvider(Ref ref, AIProviderType type) {
-  switch (type) {
-    case AIProviderType.claude:
-      return ref.read(claudeApiKeyProvider);
-    case AIProviderType.deepseek:
-      return ref.read(deepseekApiKeyProvider);
-    case AIProviderType.openai:
-      return ref.read(openaiApiKeyProvider);
-    case AIProviderType.grok:
-      return ref.read(grokApiKeyProvider);
-    case AIProviderType.gemini:
-      return ref.read(geminiApiKeyProvider);
-  }
-}
-
 // Check if API is configured
+// 注意：内联 ref.watch() 而非 ref.read()，确保 _loadKey() 异步完成后自动重新求值
 final isApiConfiguredProvider = Provider<bool>((ref) {
   final providerType = ref.watch(aiProviderTypeProvider);
-  final apiKey = _getApiKeyForProvider(ref, providerType);
+  final apiKey = switch (providerType) {
+    AIProviderType.claude => ref.watch(claudeApiKeyProvider),
+    AIProviderType.deepseek => ref.watch(deepseekApiKeyProvider),
+    AIProviderType.openai => ref.watch(openaiApiKeyProvider),
+    AIProviderType.grok => ref.watch(grokApiKeyProvider),
+    AIProviderType.gemini => ref.watch(geminiApiKeyProvider),
+  };
   return apiKey.isNotEmpty;
 });
 
 // Service Providers
 final aiServiceProvider = Provider<AIService?>((ref) {
   final providerType = ref.watch(aiProviderTypeProvider);
-  final apiKey = _getApiKeyForProvider(ref, providerType);
+  final apiKey = switch (providerType) {
+    AIProviderType.claude => ref.watch(claudeApiKeyProvider),
+    AIProviderType.deepseek => ref.watch(deepseekApiKeyProvider),
+    AIProviderType.openai => ref.watch(openaiApiKeyProvider),
+    AIProviderType.grok => ref.watch(grokApiKeyProvider),
+    AIProviderType.gemini => ref.watch(geminiApiKeyProvider),
+  };
   if (apiKey.isEmpty) return null;
   return AIService(providerType: providerType, apiKey: apiKey);
 });

@@ -355,14 +355,19 @@ class _ProgressChart extends StatelessWidget {
   }
 }
 
-class _RoadmapPreviewCard extends StatelessWidget {
+class _RoadmapPreviewCard extends ConsumerWidget {
   final Roadmap roadmap;
 
   const _RoadmapPreviewCard({required this.roadmap});
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progressAsync = ref.watch(roadmapProgressProvider(roadmap.id));
+    final progress = progressAsync.whenOrNull(data: (d) => d);
+    final completed = progress?['completed'] ?? 0;
+    final total = progress?['total'] ?? 1;
+    final pct = (total > 0 ? completed / total : 0.0);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -397,14 +402,25 @@ class _RoadmapPreviewCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    LinearProgressIndicator(
-                      value: 0,
-                      backgroundColor: Colors.grey[200],
+                    const SizedBox(height: 8),
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: pct),
+                      duration: const Duration(milliseconds: 800),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) {
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: value,
+                            backgroundColor: Colors.grey[200],
+                            minHeight: 6,
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '0% ${l10n.complete}',
+                      '$completed/$total 任务',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.grey[600],
                           ),

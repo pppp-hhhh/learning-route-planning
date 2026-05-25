@@ -35,6 +35,8 @@ class KeyNames {
   static const String envExa = 'EXA_API_KEY';
   static const String envTavily = 'TAVILY_API_KEY';
   static const String envSerpapi = 'SERPAPI_API_KEY';
+  static const String envAiProviderType = 'AI_PROVIDER_TYPE';
+  static const String envSearchProviderType = 'SEARCH_PROVIDER_TYPE';
 
   /// 内部 key → 环境变量名的映射
   static const Map<String, String> keyToEnv = {
@@ -46,7 +48,17 @@ class KeyNames {
     exaApiKey: envExa,
     tavilyApiKey: envTavily,
     serpapiApiKey: envSerpapi,
+    aiProviderType: envAiProviderType,
+    searchProviderType: envSearchProviderType,
   };
+
+  /// 所有需要在启动时解析的 key（API keys + provider types）
+  /// resolveAll() 遍历此列表，按 dart-define → .env → Secure Storage 优先级加载。
+  static const List<String> allResolvableKeys = [
+    ...allApiKeys,
+    aiProviderType,
+    searchProviderType,
+  ];
 
   /// 给定内部 key，返回对应的 dart-define / .env 变量名
   static String envNameFor(String internalKey) => keyToEnv[internalKey] ?? internalKey;

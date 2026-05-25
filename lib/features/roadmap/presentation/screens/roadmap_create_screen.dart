@@ -70,6 +70,47 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
     }
   }
 
+  /// 从 AI 回复中提取 JSON（AI 可能包在 ```json ... ``` 或带说明文字）
+  String _extractJson(String raw) {
+    final trimmed = raw.trim();
+    // 尝试直接解析
+    try {
+      jsonDecode(trimmed);
+      return trimmed;
+    } catch (_) {
+      // 忽略
+    }
+
+    // 尝试提取 ```json 或 ``` 代码块中的内容
+    final codeBlockRegExp = RegExp(r'```(?:json)?\s*([\s\S]*?)```');
+    final match = codeBlockRegExp.firstMatch(trimmed);
+    if (match != null) {
+      final candidate = match.group(1)!.trim();
+      try {
+        jsonDecode(candidate);
+        return candidate;
+      } catch (_) {
+        // 忽略
+      }
+    }
+
+    // 尝试找最外层的 { … }
+    final firstBrace = trimmed.indexOf('{');
+    final lastBrace = trimmed.lastIndexOf('}');
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      final candidate = trimmed.substring(firstBrace, lastBrace + 1);
+      try {
+        jsonDecode(candidate);
+        return candidate;
+      } catch (_) {
+        // 忽略
+      }
+    }
+
+    // 都失败了，返回原始内容让调用方抛异常
+    return trimmed;
+  }
+
   Future<void> _saveRoadmap(String generatedJson) async {
     final l10n = AppLocalizations.of(context)!;
     try {
@@ -78,7 +119,7 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
       final roadmapId = uuid.v4();
       final now = DateTime.now().millisecondsSinceEpoch;
 
-      // Insert roadmap
+      // 插入路线图
       await db.insertRoadmap(RoadmapsCompanion(
         id: Value(roadmapId),
         title: Value(_titleController.text.trim()),
@@ -91,8 +132,9 @@ class _RoadmapCreateScreenState extends ConsumerState<RoadmapCreateScreen> {
         updatedAt: Value(now),
       ));
 
-      // Parse and insert phases
-      final data = jsonDecode(generatedJson);
+      // 解析并插入阶段（AI 回复可能包在 markdown 代码块里）
+      final json = _extractJson(generatedJson);
+      final data = jsonDecode(json);
       final phases = data['phases'] as List<dynamic>;
 
       for (int i = 0; i < phases.length; i++) {

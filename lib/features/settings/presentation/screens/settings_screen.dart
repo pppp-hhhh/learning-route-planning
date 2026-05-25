@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ai_learning_route_planner/services/ai/ai_service.dart';
 import 'package:ai_learning_route_planner/features/roadmap/presentation/providers/providers.dart';
 import 'package:ai_learning_route_planner/core/router/app_router.dart';
 import 'package:ai_learning_route_planner/core/services/locale_service.dart';
@@ -23,10 +24,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final claudeKey = ref.read(claudeApiKeyProvider);
-      final exaKey = ref.read(exaApiKeyProvider);
-      _claudeKeyController.text = claudeKey;
-      _exaKeyController.text = exaKey;
+      _exaKeyController.text = ref.read(exaApiKeyProvider);
     });
   }
 
@@ -61,22 +59,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               icon: Icons.key,
             ),
             const SizedBox(height: 16),
-            _ApiKeyField(
-              label: l10n.claudeApiKey,
-              hint: 'sk-ant-api03-...',
-              controller: _claudeKeyController,
+            _AiProviderSelector(),
+            const SizedBox(height: 16),
+            _CurrentAiKeyField(
+              l10n: l10n,
               obscureText: _obscureClaudeKey,
               onToggleObscure: () {
                 setState(() => _obscureClaudeKey = !_obscureClaudeKey);
               },
-              onSave: (key) {
-                ref.read(claudeApiKeyProvider.notifier).setKey(key);
-                ref.read(authRedirectNotifierProvider).refresh();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.keySaved(l10n.claudeApiKey))),
-                );
-              },
-              helperText: 'console.anthropic.com',
             ),
             const SizedBox(height: 16),
             _ApiKeyField(
@@ -454,6 +444,175 @@ class _SettingsTile extends StatelessWidget {
         subtitle: subtitle != null ? Text(subtitle!) : null,
         trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right) : null),
         onTap: onTap,
+      ),
+    );
+  }
+}
+
+class _AiProviderSelector extends ConsumerWidget {
+  const _AiProviderSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentProvider = ref.watch(aiProviderTypeProvider);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.smart_toy, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<AIProviderType>(
+                  value: currentProvider,
+                  isExpanded: true,
+                  items: AIProviderType.values.map((type) {
+                    return DropdownMenuItem(
+                      value: type,
+                      child: Text(_providerLabel(type)),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      ref.read(aiProviderTypeProvider.notifier).setProvider(value);
+                    }
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _providerLabel(AIProviderType type) {
+    return switch (type) {
+      AIProviderType.claude => 'Claude (Anthropic)',
+      AIProviderType.deepseek => 'DeepSeek',
+      AIProviderType.openai => 'OpenAI (GPT)',
+      AIProviderType.grok => 'Grok (xAI)',
+      AIProviderType.gemini => 'Gemini (Google)',
+    };
+  }
+}
+
+class _CurrentAiKeyField extends ConsumerStatefulWidget {
+  final AppLocalizations l10n;
+  final bool obscureText;
+  final VoidCallback onToggleObscure;
+
+  const _CurrentAiKeyField({
+    required this.l10n,
+    required this.obscureText,
+    required this.onToggleObscure,
+  });
+
+  @override
+  ConsumerState<_CurrentAiKeyField> createState() => _CurrentAiKeyFieldState();
+}
+
+class _CurrentAiKeyFieldState extends ConsumerState<_CurrentAiKeyField> {
+  late final TextEditingController _controller;
+
+  String _getCurrentKey() {
+    final type = ref.read(aiProviderTypeProvider);
+    return switch (type) {
+      AIProviderType.claude => ref.read(claudeApiKeyProvider),
+      AIProviderType.deepseek => ref.read(deepseekApiKeyProvider),
+      AIProviderType.openai => ref.read(openaiApiKeyProvider),
+      AIProviderType.grok => ref.read(grokApiKeyProvider),
+      AIProviderType.gemini => ref.read(geminiApiKeyProvider),
+    };
+  }
+
+  void _saveKey(String key) {
+    final type = ref.read(aiProviderTypeProvider);
+    switch (type) {
+      case AIProviderType.claude:
+        ref.read(claudeApiKeyProvider.notifier).setKey(key);
+      case AIProviderType.deepseek:
+        ref.read(deepseekApiKeyProvider.notifier).setKey(key);
+      case AIProviderType.openai:
+        ref.read(openaiApiKeyProvider.notifier).setKey(key);
+      case AIProviderType.grok:
+        ref.read(grokApiKeyProvider.notifier).setKey(key);
+      case AIProviderType.gemini:
+        ref.read(geminiApiKeyProvider.notifier).setKey(key);
+    }
+    ref.read(authRedirectNotifierProvider).refresh();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(widget.l10n.keySaved('API Key'))),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: _getCurrentKey());
+    ref.listen(aiProviderTypeProvider, (prev, next) {
+      _controller.text = _getCurrentKey();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  '当前 AI Provider Key',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.key, size: 20),
+                  onPressed: () {},
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _controller,
+              obscureText: widget.obscureText,
+              decoration: InputDecoration(
+                hintText: '输入你的 API Key...',
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        widget.obscureText
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
+                      onPressed: widget.onToggleObscure,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.save),
+                      onPressed: () => _saveKey(_controller.text),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

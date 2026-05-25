@@ -157,31 +157,10 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
     // 刷新 auth state 触发路由重定向
     ref.read(authRedirectNotifierProvider).refresh();
 
-    // 验证 API key
-    final service = AIService(
-      providerType: _selectedProvider,
-      apiKey: apiKey,
-    );
-
-    final result = await service.generateRoadmap(
-      goal: 'test',
-      timeframe: '1 week',
-      difficulty: 'beginner',
-      dailyMinutes: 30,
-    );
-
-    service.dispose();
-
-    if (result.success) {
-      if (mounted) {
-        context.go('/home');
-      }
-    } else {
-      setState(() {
-        _isVerifying = false;
-        _errorMessage = result.error ?? l10n.apiVerificationFailed;
-      });
-      // Don't clear the key - let user retry with the same key
+    // 跳过验证调用（浪费 token），直接进入主页
+    // 如果 key 无效，用户在使用时会看到错误提示
+    if (mounted) {
+      context.go('/home');
     }
   }
 
@@ -206,11 +185,7 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
               const SizedBox(height: 24),
               _buildApiKeyInput(context, l10n, isDark),
               const SizedBox(height: 24),
-              _buildExaKeyInput(context, l10n, isDark),
-              const SizedBox(height: 16),
-              _buildTavilyKeyInput(context, l10n, isDark),
-              const SizedBox(height: 16),
-              _buildSerpapiKeyInput(context, l10n, isDark),
+              _buildSearchSection(context, l10n, isDark),
               const SizedBox(height: 16),
               _buildDocsLink(context, l10n, isDark),
               if (_errorMessage != null) ...[
@@ -622,6 +597,29 @@ class _ApiSetupScreenState extends ConsumerState<ApiSetupScreen> {
         trailing: Icon(Icons.chevron_right, color: isDark ? Colors.grey.shade400 : Colors.grey),
         onTap: () => _openDocs(_selectedProvider),
       ),
+    );
+  }
+
+  Widget _buildSearchSection(BuildContext context, AppLocalizations l10n, bool isDark) {
+    return ExpansionTile(
+      title: Text(
+        '🔍 搜索配置（可选）',
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+      subtitle: Text(
+        '不配置也能使用核心功能',
+        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+      ),
+      initiallyExpanded: false,
+      children: [
+        _buildExaKeyInput(context, l10n, isDark),
+        const SizedBox(height: 12),
+        _buildTavilyKeyInput(context, l10n, isDark),
+        const SizedBox(height: 12),
+        _buildSerpapiKeyInput(context, l10n, isDark),
+      ],
     );
   }
 

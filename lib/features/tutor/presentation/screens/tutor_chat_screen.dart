@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:ai_learning_route_planner/widgets/mermaid_block_builder.dart';
 import 'package:ai_learning_route_planner/features/roadmap/presentation/providers/providers.dart';
 import 'package:ai_learning_route_planner/l10n/app_localizations.dart';
 
@@ -11,36 +13,62 @@ class TutorChatScreen extends ConsumerStatefulWidget {
   ConsumerState<TutorChatScreen> createState() => _TutorChatScreenState();
 }
 
-class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
+class _TutorChatScreenState extends ConsumerState<TutorChatScreen>
+    with SingleTickerProviderStateMixin {
   final _messageController = TextEditingController();
   final List<Map<String, String>> _messages = [];
+  final _listKey = GlobalKey<AnimatedListState>();
+  final _scrollController = ScrollController();
+  late final AnimationController _typingAnimCtrl;
   bool _isTyping = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _typingAnimCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+  }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _scrollController.dispose();
+    _typingAnimCtrl.dispose();
     super.dispose();
   }
 
-  void _sendSuggestion(String text) {
-    setState(() {
-      _messages.add({'role': 'user', 'content': text});
-      _isTyping = true;
+  void _addMessage(Map<String, String> msg) {
+    _messages.add(msg);
+    _listKey.currentState?.insertItem(
+      _messages.length - 1,
+      duration: const Duration(milliseconds: 350),
+    );
+    // 滚动到底部
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     });
+  }
+
+  void _sendSuggestion(String text) {
+    _addMessage({'role': 'user', 'content': text});
+    setState(() => _isTyping = true);
+    _typingAnimCtrl.repeat();
     _callAi(text);
   }
 
   void _sendMessage() {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
-
-    setState(() {
-      _messages.add({'role': 'user', 'content': text});
-      _isTyping = true;
-    });
-
+    _addMessage({'role': 'user', 'content': text});
     _messageController.clear();
-
+    setState(() => _isTyping = true);
+    _typingAnimCtrl.repeat();
     _callAi(text);
   }
 
@@ -48,28 +76,28 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
     final aiService = ref.read(aiServiceProvider);
     if (aiService == null) {
       if (mounted) {
-        setState(() {
-          _messages.add({
-            'role': 'assistant',
-            'content': 'API key not configured. Please add your API key in Settings.',
-          });
-          _isTyping = false;
+        _addMessage({
+          'role': 'assistant',
+          'content': 'API key not configured. Please add your API key in Settings.',
         });
+        setState(() => _isTyping = false);
+        _typingAnimCtrl.stop();
       }
       return;
     }
 
     final result = await aiService.answerQuestion(question: text, context: '');
     if (mounted) {
-      setState(() {
-        _messages.add({
-          'role': 'assistant',
-          'content': result.content ?? result.error ?? 'No response',
-        });
-        _isTyping = false;
+      _addMessage({
+        'role': 'assistant',
+        'content': result.content ?? result.error ?? 'No response',
       });
+      setState(() => _isTyping = false);
+      _typingAnimCtrl.stop();
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -99,17 +127,35 @@ class _TutorChatScreenState extends ConsumerState<TutorChatScreen> {
           Expanded(
             child: _messages.isEmpty
                 ? _EmptyChat(onSendSuggestion: _sendSuggestion)
-                : ListView.builder(
+                : AnimatedList(
+                    key: _listKey,
+                    controller: _scrollController,
                     padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length + (_isTyping ? 1 : 0),
-                    itemBuilder: (context, index) {
+                    initialItemCount: _messages.length,
+                    itemBuilder: (context, index, animation) {
+                      // 最后一个位置可能是打字指示器
                       if (index == _messages.length && _isTyping) {
-                        return _TypingIndicator();
+                        return SizeTransition(
+                          sizeFactor: animation,
+                          child: FadeTransition(
+                            opacity: animation,
+                            child: const _TypingIndicator(),
+                          ),
+                        );
+                      }
+                      if (index >= _messages.length) {
+                        return const SizedBox.shrink();
                       }
                       final message = _messages[index];
-                      return _MessageBubble(
-                        content: message['content']!,
-                        isUser: message['role'] == 'user',
+                      return SizeTransition(
+                        sizeFactor: animation,
+                        child: FadeTransition(
+                          opacity: animation,
+                          child: _MessageBubble(
+                            content: message['content']!,
+                            isUser: message['role'] == 'user',
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -178,6 +224,7 @@ class _MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -188,8 +235,8 @@ class _MessageBubble extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: isUser
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.surface,
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surface,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -204,25 +251,54 @@ class _MessageBubble extends StatelessWidget {
             ),
           ],
         ),
-        child: Text(
-          content,
-          style: TextStyle(
-            color: isUser ? Colors.white : null,
-          ),
-        ),
+        child: isUser
+            ? Text(
+                content,
+                style: TextStyle(color: Colors.white),
+              )
+            : MarkdownBody(
+                data: content,
+                selectable: true,
+                builders: {'pre': MermaidBlockBuilder()},
+                styleSheet: MarkdownStyleSheet(
+                  p: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                  code: TextStyle(
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    color: theme.colorScheme.primary,
+                    fontSize: 13,
+                  ),
+                  codeblockDecoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  blockquoteDecoration: BoxDecoration(
+                    border: Border(
+                      left: BorderSide(
+                        color: theme.colorScheme.primary,
+                        width: 3,
+                      ),
+                    ),
+                  ),
+                  h1: theme.textTheme.titleLarge,
+                  h2: theme.textTheme.titleMedium,
+                  h3: theme.textTheme.titleSmall,
+                ),
+              ),
       ),
     );
   }
 }
 
 class _TypingIndicator extends StatelessWidget {
+  const _TypingIndicator();
+
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: const BorderRadius.only(
@@ -235,31 +311,75 @@ class _TypingIndicator extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildDot(0),
-            const SizedBox(width: 4),
-            _buildDot(1),
-            const SizedBox(width: 4),
-            _buildDot(2),
+            _BounceDot(delay: 0),
+            const SizedBox(width: 5),
+            _BounceDot(delay: 200),
+            const SizedBox(width: 5),
+            _BounceDot(delay: 400),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildDot(int index) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 600 + (index * 200)),
-      builder: (context, value, child) {
-        return Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: Colors.grey[400]?.withValues(alpha: 0.3 + (value * 0.7)),
-            shape: BoxShape.circle,
+class _BounceDot extends StatefulWidget {
+  final int delay;
+  const _BounceDot({required this.delay});
+
+  @override
+  State<_BounceDot> createState() => _BounceDotState();
+}
+
+class _BounceDotState extends State<_BounceDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _anim = CurvedAnimation(
+      parent: _ctrl,
+      curve: Interval(
+        widget.delay / 1200,
+        1.0,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, -3 * _anim.value),
+          child: Opacity(
+            opacity: 0.3 + (0.7 * _anim.value),
+            child: child,
           ),
         );
       },
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: const BoxDecoration(
+          color: Colors.grey,
+          shape: BoxShape.circle,
+        ),
+      ),
     );
   }
 }

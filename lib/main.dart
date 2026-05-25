@@ -23,16 +23,16 @@ void main() async {
     await keyStorage.migrateFromPrefs((key) async => prefs.getString(key));
   } catch (_) {}
 
-  // 3. 启动 App
+  // 3. 预加载 Auth 状态（resolveAll() 已把 .env 值持久化到 Secure Storage）
+  final authNotifier = AuthRedirectNotifier(keyStorage);
+  await authNotifier.load(); // ← 在 runApp 之前完成，避免路由首帧误跳 /setup
+
+  // 4. 启动 App
   runApp(
     ProviderScope(
       overrides: [
         secureKeyStorageProvider.overrideWithValue(keyStorage),
-        authRedirectNotifierProvider.overrideWith((ref) {
-          final notifier = AuthRedirectNotifier(keyStorage);
-          notifier.load(); // 异步加载当前 key 状态
-          return notifier;
-        }),
+        authRedirectNotifierProvider.overrideWith((ref) => authNotifier),
       ],
       child: const AILearningRouteApp(),
     ),
